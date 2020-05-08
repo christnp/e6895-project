@@ -1,0 +1,1000 @@
+ 1016  cd ../e6893-hw3
+ 1017  ls
+ 1018  cd answers/
+ 1019  ls
+ 1020  jupyter notebook
+ 1021  cd ../../e6893-project/
+ 1022  ls
+ 1023  pwd
+ 1024  cd scratch/
+ 1025  cd temp/
+ 1026  ls
+ 1027  cd gdo-dcp.ucllnl.org/
+ 1028  ls
+ 1029  pwd
+ 1030  l
+ 1031  cd ~
+ 1032  cd /home/christp/Development/e6893/homework/e6893-project/scratch/temp/gdo-dcp.ucllnl.org/
+ 1033  cd Development/e6893/homework/e6893-project/scratch/
+ 1034  python dataScraper.py 
+ 1035  cd ..
+ 1036  git add .
+ 1037  git commit -m "parser and scraper working"
+ 1038  git push origin master
+ 1039  git add .
+ 1040  git commit -m "do work; preprocessor needs worked on"
+ 1041  git push origin master
+ 1042  cd ..
+ 1043  jupyter notebook
+ 1044  cd e6893-project/
+ 1045  git add .
+ 1046  git commit -m "mod_test: why isn't the DF showing up?"
+ 1047  git push origin master
+ 1048  python src/lib/country_boxes.py 
+ 1049  python src/lib/CountryBoxes.py 
+ 1050  sphinx-apidoc -o docs src/my_project
+ 1051  cd src/
+ 1052  ls
+ 1053  cd doc/
+ 1054  cd doc/cd ..
+ 1055  sphinx-apidoc -o docs lib
+ 1056  ls
+ 1057  cd ..
+ 1058  ls
+ 1059  sphinx-apidoc -o docs doc/proj/
+ 1060  ls
+ 1061  cd docs/
+ 1062  ls
+ 1063  nano modules.rst 
+ 1064  cd ..
+ 1065  ls
+ 1066  rm -r docs/
+ 1067  sphinx-apidoc -o docs lib/
+ 1068  cd docs/
+ 1069  ls
+ 1070  nano lib.rst 
+ 1071  mv * ../doc/proj/
+ 1072  cd ../doc
+ 1073  ls
+ 1074  cd proj/
+ 1075  ls
+ 1076  cd ../../
+ 1077  cd lib/
+ 1078  python mod_test.py 
+ 1079  cd ..
+ 1080  cd ~/Development/e6893/homework/e6893-project/src/
+ 1081  ls
+ 1082  python mod_test.py 
+ 1083  cd ..
+ 1084  ls
+ 1085  cd scratch/
+ 1086  python dataParser.py 
+ 1087  cd scratch/
+ 1088  python dataParser.py 
+ 1089  cd ../src/usheatmap/
+ 1090  python dataParser.py 
+ 1091  python UhmDataParser.py 
+ 1092  python UshmDataParser.py 
+ 1093  python UhmDataParser.py 
+ 1094  ls
+ 1095  python UshmDataParser.py 
+ 1096  python UshmDataScraper.py 
+ 1097  python UshmDataPreprocessor.py 
+ 1098  ls
+ 1099  cd ..
+ 1100  python mod_test.py 
+ 1101  python -m pip install pyspark --user
+ 1102  python mod_test.py 
+ 1103  cd Development/e6893/homework/e6893-project/
+ 1104  git add .
+ 1105  git commit -m "done for the night"
+ 1106  git push origin master
+ 1107  git ad .
+ 1108  git add .
+ 1109  git reset
+ 1110  git add .
+ 1111  git status
+ 1112  git reset
+ 1113  git status
+ 1114  nano .gitignore 
+ 1115  git add .
+ 1116  git status
+ 1117  git reset
+ 1118  git rm scratch/country_bounds 
+ 1119  git rm scratch/country_bounds
+ 1120  rm scratch/country_bounds
+ 1121  git add .
+ 1122  git status
+ 1123  git commit -m "working on it"
+ 1124  git push origin master
+ 1125  sudo echo 1 > /proc/sys/vm/overcommit_memory
+ 1126  sudo su
+ 1127  git status
+ 1128  git add ./
+ 1129  git status
+ 1130  git commit -m "bounded/converted working; before code cleanup"
+ 1131  git push origin master
+ 1132  git add .
+ 1133  git commit -m "cleaned up code; good night"
+ 1134  git push origin master
+ 1135  python -m http.server
+ 1136  cd ~
+ 1137  easy_install -U sphinx
+ 1138  pip install --user sphinx
+ 1139  pip install sphinx --user
+ 1140  python -m pip install sphinx --user
+ 1141  sphinx-quickstart
+ 1142  cd Development/e6893/homework/e6893-project/
+ 1143  ls
+ 1144  mkdir src
+ 1145  cd src/
+ 1146  sphinx-quickstart
+ 1147  ls
+ 1148  mkdir doc
+ 1149  rm doc
+ 1150  rm -r doc
+ 1151  cd ..
+ 1152  mv src/ doc/
+ 1153  mkdir src
+ 1154  mv doc/ src/
+ 1155  cd src/
+ 1156  ls
+ 1157  cd doc/
+ 1158  ls
+ 1159  cd ../
+ 1160  ls
+ 1161  nano setup.py
+ 1162  ls
+ 1163  mkdir lib
+ 1164  ls
+ 1165  nano lib/__init__.py
+ 1166  nano setup.py
+ 1167  nano README.me
+ 1168  nano README.md
+ 1169  nano LICENSE
+ 1170  nano README.md
+ 1171  ls
+ 1172  cd doc/
+ 1173  ls
+ 1174  make html
+ 1175  python -m SimpleHTTPServer
+ 1176  python -m pip install SimpleHTTPServer --user
+ 1177  python -m http.server
+ 1178  cd .././
+ 1179  cd ..
+ 1180  ls
+ 1181  nano README.md 
+ 1182  cd src/doc/
+ 1183  ls
+ 1184  nano index.rst 
+ 1185  fg
+ 1186  make html
+ 1187  nano index.rst 
+ 1188  make html
+ 1189  nano index.rst 
+ 1190  make html
+ 1191  ls
+ 1192  mk dir proj
+ 1193  mkdir proj
+ 1194  mv project.rst proj
+ 1195  make html
+ 1196  ls
+ 1197  cd ..
+ 1198  ls
+ 1199  mkdir usheatmap
+ 1200  mv lib/CountryBoxes.py usheatmap/
+ 1201  mv lib/__init__.py usheatmap/
+ 1202  rm -r lib/
+ 1203  cd usheatmap/
+ 1204  ls
+ 1205  cd ..
+ 1206  ls
+ 1207  cd doc
+ 1208  make html
+ 1209  cd ..
+ 1210  mkdir lib
+ 1211  ls
+ 1212  ls lib/
+ 1213  rm lib/__init__.py 
+ 1214  cp usheatmap lib/
+ 1215  cp -r usheatmap lib/
+ 1216  ls
+ 1217  ls lib/
+ 1218  cd doc
+ 1219  make html
+ 1220  cd ..
+ 1221  ls
+ 1222  cd lib/
+ 1223  nano mod_test.py
+ 1224  python mod_test.py 
+ 1225  ls
+ 1226  cd .
+ 1227  cd ~/Development/e6893/homework/e6893-project/sr
+ 1228  cd ~/Development/e6893/homework/e6893-project/src/
+ 1229  cd doc
+ 1230  make html
+ 1231  ./panoply.sh 
+ 1232  top
+ 1233  cd scratch/
+ 1234  python salem_scratch.py 
+ 1235  cd ../src
+ 1236  python mod_test.py 
+ 1237  cd ../src
+ 1238  python mod_test.py 
+ 1239  cd ../src
+ 1240  python mod_test.py 
+ 1241  cd ../src
+ 1242  python mod_test.py 
+ 1243  ipython
+ 1244  python mod_test.py 
+ 1245  ipython
+ 1246  python mod_test.py 
+ 1247  ipython
+ 1248  python mod_test.py 
+ 1249  ipython
+ 1250  python mod_test.py 
+ 1251  ipython
+ 1252  python mod_test.py 
+ 1253  cd ..
+ 1254  git status
+ 1255  git add .
+ 1256  git commit -m "preprocessing done for now; need to fix all the '-1' county means for VH data"
+ 1257  git push origin master
+ 1258  cd src
+ 1259  ls
+ 1260  python mod_test.py 
+ 1261  cd ../scratch/
+ 1262  python salem_scratch.py 
+ 1263  cd ../src/
+ 1264  python vh_analysis.py 
+ 1265  cd .
+ 1266  cd ..
+ 1267  git add .
+ 1268  git commit -m "pushing updates)
+ 1269  git commit -m "pushing updates"
+ 1270  git pushin origin master
+ 1271  git pushi origin master
+ 1272  git push origin master
+ 1273  cd src/
+ 1274  ls
+ 1275  python vh_analysis.py 
+ 1276  ls
+ 1277  python vh_analysis.py 
+ 1278  /usr/bin/python3
+ 1279  cd scratch/
+ 1280  python scratch.py 
+ 1281  f = /home/christnp/Development/e6893/homework/e6893-project/src/.tmp/temp_ftp.star.nesdis.noaa.gov/VHP.G04.C07.npp.P2018001.VH.nc
+ 1282  cd src/
+ 1283  python mod_test.py 
+ 1284  ipython
+ 1285  python mod_test.py 
+ 1286  ipython
+ 1287  python mod_test.py 
+ 1288  ipython
+ 1289  fp
+ 1290  fg
+ 1291  python mod_test.py 
+ 1292  cd ../scratch/
+ 1293  python salem_scratch.py 
+ 1294  python salem_scratch.py [A
+ 1295  python salem_scratch.py
+ 1296  python bigquery_sandbox.py 
+ 1297  python bulk_rename.py 
+ 1298  cd Downloads/
+ 1299  cd PanoplyJ/
+ 1300  ./panoply.sh 
+ 1301  cd ../../Development/e6893/homework/e6893-project/
+ 1302  git status
+ 1303  nano .gitignore 
+ 1304  git status
+ 1305  ls src/.directory 
+ 1306  git add .
+ 1307  git commit -m "mostly working code up through preprocessor"
+ 1308  git push origin master
+ 1309  git add .
+ 1310  git commit -m "finished rev 1; running overnight"
+ 1311  git push origin master
+ 1312  ls /mnt/
+ 1313  ls /mnt/hgfs/
+ 1314  ls /mnt/virtual/
+ 1315  ls /mnt/home-share/
+ 1316  sudo apt-get install --reinstall udisks2
+ 1317  git status
+ 1318  git add .
+ 1319  git commit -m "adding sample data; updated cluster call"
+ 1320  git push origin master
+ 1321  cp *.json /media/christnp/3234-6265/usheatmap/preprocessed
+ 1322  ls /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1323  rm -r /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1324  mkdir -p /media/christnp/3234-6265/usheatmap/preprocessed
+ 1325  cp *.json /media/christnp/3234-6265/usheatmap/preprocessed
+ 1326  ls
+ 1327  ls static/
+ 1328  ls 
+ 1329  ls archive/
+ 1330  rm archive/
+ 1331  rm -r archive/
+ 1332  rm -r static/
+ 1333  cp -r *.json /media/christnp/3234-6265/usheatmap/preprocessed
+ 1334  cp -r *.json /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1335  sudo cp -r *.json /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1336  sudo cp -rv *.json /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1337  cp -r *.json /media/christnp/3234-6265/usheatmap/preprocessed/
+ 1338  ls
+ 1339  gcloud beta dataproc clusters create hw4-cluster    --optional-components=ANACONDA,JUPYTER --image-version=preview    --enable-component-gateway --bucket eecs-e6893-edu    --project eecs-e6893-edu --num-workers 3 --metadata 'PIP_PACKAGES=graphframes numpy matplotlib pandas_gbq requests_oauthlib google-cloud-storage google-cloud-bigquery'     --metadata gcs-connector-version=1.9.16 --metadata bigquery-connector-version=0.13.16 --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh,gs://dataproc-initialization-actions/connectors/connectors.sh --properties spark:spark.jars.packages=graphframes:graphframes:0.6.0-spark2.3-s_2.11
+ 1340  gcloud beta dataproc clusters create ushm-cluster    --optional-components=ANACONDA,JUPYTER --image-version=preview    --enable-component-gateway --bucket eecs-e6893-edu    --project eecs-e6893-edu --num-workers 3 --metadata 'PIP_PACKAGES=graphframes numpy matplotlib pandas_gbq requests_oauthlib google-cloud-storage google-cloud-bigquery'     --metadata gcs-connector-version=1.9.16 --metadata bigquery-connector-version=0.13.16 --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh,gs://dataproc-initialization-actions/connectors/connectors.sh --properties spark:spark.jars.packages=graphframes:graphframes:0.6.0-spark2.3-s_2.11
+ 1341  gcloud beta dataproc clusters create ushm-cluster    --optional-components=ANACONDA,JUPYTER --image-version=preview    --enable-component-gateway --bucket eecs-e6893-edu    --project eecs-e6893-edu --num-workers 3 --metadata 'PIP_PACKAGES=graphframes numpy matplotlib pandas_gbq requests_oauthlib google-cloud-storage google-cloud-bigquery xarray json pprint salem functools geopandas pandas shapely netCDF4'     --metadata gcs-connector-version=1.9.16 --metadata bigquery-connector-version=0.13.16 --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh,gs://dataproc-initialization-actions/connectors/connectors.sh --properties spark:spark.jars.packages=graphframes:graphframes:0.6.0-spark2.3-s_2.11
+ 1342  gcloud beta dataproc clusters create ushm-cluster    --optional-components=ANACONDA,JUPYTER --image-version=preview    --enable-component-gateway --bucket eecs-e6893-edu    --project eecs-e6893-edu --num-workers 3 --metadata 'PIP_PACKAGES=graphframes numpy matplotlib pandas_gbq requests_oauthlib google-cloud-storage google-cloud-bigquery xarray  pprint salem geopandas pandas shapely netCDF4'     --metadata gcs-connector-version=1.9.16 --metadata bigquery-connector-version=0.13.16 --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh,gs://dataproc-initialization-actions/connectors/connectors.sh --properties spark:spark.jars.packages=graphframes:graphframes:0.6.0-spark2.3-s_2.11
+ 1343  gcloud beta dataproc clusters create ushm-cluster    --optional-components=ANACONDA,JUPYTER --image-version=preview    --enable-component-gateway --bucket eecs-e6893-edu    --project eecs-e6893-edu --num-workers 3 --metadata 'PIP_PACKAGES=graphframes numpy matplotlib pandas_gbq requests_oauthlib google-cloud-storage google-cloud-bigquery xarray  pprint salem descartes scipy pyproj joblib scikit-image pillow geopandas pandas shapely netCDF4'     --metadata gcs-connector-version=1.9.16 --metadata bigquery-connector-version=0.13.16 --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh,gs://dataproc-initialization-actions/connectors/connectors.sh --properties spark:spark.jars.packages=graphframes:graphframes:0.6.0-spark2.3-s_2.11
+ 1344  ls
+ 1345  cd ..
+ 1346  ls -l
+ 1347  cd preprocessed/
+ 1348  cp ~/Development/e6893/homework/e6893-project/src/usheatmap/.tmp/
+ 1349  cp ~/Development/e6893/homework/e6893-project/src/usheatmap/.tmp/*.json .
+ 1350  cp ~/Development/e6893/homework/e6893-project/src/usheatmap/.tmp/ .
+ 1351  cp ~/Development/e6893/homework/e6893-project/src/usheatmap/.tmp/*.json .
+ 1352  pwd
+ 1353  cd /Desk
+ 1354  cd Desktop/
+ 1355  sudo ./bluetooth_remove.sh 
+ 1356  cd ~/Downloads/d3-workshop-master/
+ 1357  ls
+ 1358  cd d3_part4_mappingData/
+ 1359  ;s
+ 1360  ls
+ 1361  nano ../README.md 
+ 1362  http-server &
+ 1363  http-server
+ 1364  npm install -g http-server
+ 1365  sudo apt install npm
+ 1366  http-server
+ 1367  npm install -g http-server
+ 1368  sudo npm install -g http-server
+ 1369  http-server
+ 1370  cd ~/Development/e6893/homework/e6893-project/scratch/
+ 1371  python bigquery_sandbox.py 
+ 1372  history
+ 1373  http-server
+ 1374  cd ~/Downloads/d3-workshop-master/
+ 1375  http-server
+ 1376  mv cb_2018_us_cont_500k.geojson cb_2018_us_cont_county_500k.geojson
+ 1377  geo2topo cb_2018_us_cont_county_500k.geojson > us_cont_county.json
+ 1378  ls
+ 1379  cp us_cont_county.json ~/Downloads/d3-workshop-master/d3_part4_mappingData/data/
+ 1380  ls
+ 1381  geo2topo cont_us_counties.geojson > cont_us_counties.json
+ 1382  geo2topo cont_us_states.geojson > cont_us_states.json
+ 1383  geo2topo new-england_counties.geojson > ne_counties.json
+ 1384  geo2topo new-england_states.geojson > ne_states.json
+ 1385  geo2topo new-england_counties.geojson > ne_counties.json
+ 1386  geo2topo counties.geojson > ne_counties.json
+ 1387  geo2topo states.geojson > ne_states.json
+ 1388  git status
+ 1389  nano .gitignore 
+ 1390  git status
+ 1391  git add .
+ 1392  git commit -m "updated visualization"
+ 1393  git push origin master
+ 1394  git add .
+ 1395  git commit -m "changed theme colors; added google analytics"
+ 1396  git push origin master
+ 1397  git stash
+ 1398  git pull 
+ 1399  git status
+ 1400  git push origin master
+ 1401  git status
+ 1402  git add .
+ 1403  git commit -m "pulled working pythonanywhere version"
+ 1404  git push origin master
+ 1405  ls
+ 1406  cd Down
+ 1407  cd Downloads/
+ 1408  django-admin.py startproject usheatmap
+ 1409  ls
+ 1410  cd usheatmap/
+ 1411  ls
+ 1412  cd ..
+ 1413  rm -r usheatmap/
+ 1414  cd ../Development/e6893/homework/e6893-project/
+ 1415  ls
+ 1416  cd src/
+ 1417  ls
+ 1418  django-admin.py startproject usheatmap-web
+ 1419  django-admin.py startproject website
+ 1420  ls
+ 1421  cd website/
+ 1422  ls
+ 1423  python manage.py runserver
+ 1424  ech $DJANGO_SETTINGS_MODULE
+ 1425  echo $DJANGO_SETTINGS_MODULE
+ 1426  python manage.py migrate
+ 1427  python manage.py runserver
+ 1428  lsb
+ 1429  lab_release -a
+ 1430  lsb_release -a
+ 1431  nano /etc/apt/sources.list
+ 1432  sudo nano /etc/apt/sources.list
+ 1433  sudo apt-get update
+ 1434  sudo nano /etc/apt/sources.list
+ 1435  wget -O - https://qgis.org/downloads/qgis-2019.gpg.key | gpg --import
+ 1436  gpg --fingerprint 51F523511C7028C3
+ 1437  sudo apt-get update
+ 1438  gpg --export --armor 51F523511C7028C3 | sudo apt-key add -
+ 1439  sudo apt-get update
+ 1440  sudo apt-get install qgis qgis-plugin-grass
+ 1441  qgis
+ 1442  topojson
+ 1443  npm install topojson
+ 1444  sudo npm install topojson-client
+ 1445  sudo npm install topojson
+ 1446  npm install -g topojson
+ 1447  sudo npm install -g topojson
+ 1448  topojson
+ 1449  geo2topo
+ 1450  sudo npm install -g topojson-client
+ 1451  sudo npm install -g topojson-server
+ 1452  ls
+ 1453  python manage.py runserver
+ 1454  cd ../../../
+ 1455  cd website/
+ 1456  ls
+ 1457  python manage.py runserver
+ 1458  http-server 
+ 1459  cd ../../../../Downloads/d3-simple-slider-master/
+ 1460  http-server 
+ 1461  grep -r "resume-content"
+ 1462  history
+ 1463  ls
+ 1464  cd ../e6893-project/src/website
+ 1465  ls
+ 1466  s
+ 1467  ls
+ 1468  python manage.py runserver
+ 1469  cd ..
+ 1470  ls
+ 1471  cd website
+ 1472  ls
+ 1473  python manage.py runserver
+ 1474  cd ..
+ 1475  cd website
+ 1476  python manage.py runserver
+ 1477  cd ../../
+ 1478  git pull
+ 1479  git status
+ 1480  ls
+ 1481  cd ..
+ 1482  ls
+ 1483  mkdir 201912-51-Predicting-US-Crop-Performance
+ 1484  cd 201912-51-Predicting-US-Crop-Performance/
+ 1485  git clone https://github.com/Sapphirine/201912-51-Predicting-US-Crop-Performance.git
+ 1486  ls
+ 1487  cd ..
+ 1488  mv 201912-51-Predicting-US-Crop-Performance/ temp
+ 1489  cd temp/
+ 1490  mv 201912-51-Predicting-US-Crop-Performance/ ../
+ 1491  ls
+ 1492  cd ..
+ 1493  ls 
+ 1494  rm -3 temp/
+ 1495  rm -r temp/
+ 1496  cd 201912-51-Predicting-US-Crop-Performance/
+ 1497  ls
+ 1498  git status
+ 1499  git add .
+ 1500  git status
+ 1501  git add 
+ 1502  git ad .
+ 1503  git add .
+ 1504  git commit -m "initial push of all code"
+ 1505  git push
+ 1506  git add .
+ 1507  git commit -m "updated readme"
+ 1508  git push 
+ 1509  git status
+ 1510  git add .
+ 1511  git pull
+ 1512  git commit -m "updated working pythonanywhere copy"
+ 1513  git pull
+ 1514  git status
+ 1515  git push origin master
+ 1516  git status
+ 1517  git add .
+ 1518  git commit -m "cleaned up code; lightened county borders"
+ 1519  git push origin master
+ 1520  cd Development/e6893/homework/201912-51-Predicting-US-Crop-Performance/
+ 1521  cd src/website/static/
+ 1522  ls
+ 1523  cd ..
+ 1524  ls
+ 1525  cd website/static/
+ 1526  ls
+ 1527  rm eecs-e6893-edu-56ce9c449829.json 
+ 1528  ls
+ 1529  cd ../../
+ 1530  cd .././.
+ 1531  cd ../
+ 1532  git status
+ 1533  git add .
+ 1534  git commit -m "removed google key"
+ 1535  git push 
+ 1536  ls
+ 1537  nano README.md 
+ 1538  ls
+ 1539  cd src/website/
+ 1540  ls
+ 1541  cd website/
+ 1542  ls
+ 1543  cd ../../../
+ 1544  cd e6895/data/
+ 1545  ls
+ 1546  python --version
+ 1547  python goal_parser.py 
+ 1548  cd Desktop/
+ 1549  ls
+ 1550  ls -l
+ 1551  ./bluetooth_remove.sh 
+ 1552  sudo ./bluetooth_remove.sh 
+ 1553  top
+ 1554  cd ~/
+ 1555  sudo mkdir /media/scandisk
+ 1556  ls /m
+ 1557  ls /media/
+ 1558  sudo mount -t vfat /dev/sdb1 /media/scandisk/
+ 1559  lsblk
+ 1560  cd /media/scandisk/
+ 1561  ls
+ 1562  ls WinUSB/
+ 1563  nano menu.lst 
+ 1564  ls bootmgr
+ 1565  ls
+ 1566  nano bootmgr
+ 1567  ls boot
+ 1568  ls WinUSB/
+ 1569  cd WinUSB/
+ 1570  nano WinUSB.json 
+ 1571  id
+ 1572  exit
+ 1573  cd Development/e6895/scripts/
+ 1574  ls
+ 1575  chmod +x create_neo4j_docker.sh 
+ 1576  ./create_neo4j_docker.sh 
+ 1577  gcloud compute images list --project launcher-public | grep neo4j
+ 1578  ./create_neo4j_docker.sh 
+ 1579  sudo apt-get update
+ 1580  sudo apt-get install nordvpn
+ 1581  clear
+ 1582  sudo apt-get remove docker docker-engine docker.io
+ 1583  sudo apt install docker.io
+ 1584  sudo systemctl start docker
+ 1585  sudo systemctl enable docker
+ 1586  docker --version
+ 1587  sudo apt-get update
+ 1588  ./create_neo4j_docker.sh 
+ 1589  docker run hello-world
+ 1590  sudo groupadd docker
+ 1591  lid
+ 1592  grep 'docker' /etc/group
+ 1593  sudo usermod -aG docker ${USER}
+ 1594  grep 'docker' /etc/group
+ 1595  docker run hello-world
+ 1596  id
+ 1597  su - $USER
+ 1598  id
+ 1599  exec su -l $USER
+ 1600  id
+ 1601  exit
+ 1602  id
+ 1603  cd Development/e6895/scripts/
+ 1604  docker run hello-world
+ 1605  cd Development/e6895/scripts/
+ 1606  docker run hello-world
+ 1607  ./create_neo4j_docker.sh 
+ 1608  docker ps
+ 1609  docker ps -a
+ 1610  chmod +x stop_neo4j_docker.sh 
+ 1611  ./stop_neo4j_docker.sh 
+ 1612  docker container ls
+ 1613  docker images
+ 1614  docker ps --format "{{.ID}}: {{.Command}}"
+ 1615  docker ps --format "table {{.ID}}\t{{.NAMES}}\t{{STATUS}}"
+ 1616  docker ps --format "table {{.ID}}\t{{.NAMES}}\t{{.STATUS}}"
+ 1617  docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}"
+ 1618  docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\n{{.ID}}"
+ 1619  docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.ID}}"
+ 1620  docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.ID}}"
+ 1621  ./stop_neo4j_docker.sh 
+ 1622  docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.ID}}
+ 1623  docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.ID}}
+ 1624  docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.ID}}"
+ 1625  chmod +x start_neo4j_docker.sh 
+ 1626  ./start_neo4j_docker.sh 
+ 1627  docker ps -a
+ 1628  ./stop_neo4j_docker.sh 
+ 1629  ./start_neo4j_docker.sh 
+ 1630  ./create_neo4j_docker.sh 
+ 1631  ./stop_neo4j_docker.sh 
+ 1632  ./create_neo4j_docker.sh 
+ 1633  chmod +x delete_neo4j_docker.sh 
+ 1634  ./delete_neo4j_docker.sh 
+ 1635  docker ps -a
+ 1636  ./start_neo4j_docker.sh 
+ 1637  ./stop_neo4j_docker.sh 
+ 1638  ./delete_neo4j_docker.sh 
+ 1639  docker ps -a
+ 1640  ./create_neo4j_docker.sh 
+ 1641  docker ps
+ 1642  jave --version
+ 1643  java --version
+ 1644  java -version
+ 1645  sudo apt-get install scala
+ 1646  scala
+ 1647  clear
+ 1648  ./spark-shell
+ 1649  spark
+ 1650  scala --version
+ 1651  scala -version
+ 1652  python3 --version
+ 1653  echo SCALA_HOME
+ 1654  echo $SCALA_HOME
+ 1655  which scala
+ 1656  java -version
+ 1657  echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+ 1658  curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+ 1659  sudo apt install curl
+ 1660  curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | sudo apt-key add
+ 1661  sudo apt-get update
+ 1662  sudo apt-get install sbt
+ 1663  scala -version
+ 1664  cd ~/Downloads/
+ 1665  tar xvf scala-2.12.10.tgz 
+ 1666  su -
+ 1667  su
+ 1668  sudo su
+ 1669  scala -version
+ 1670  sudo apt-get remove scala
+ 1671  ls /usr/local/scala/
+ 1672  scala -version
+ 1673  ls /usr/bin/scanimage 
+ 1674  export PATH = $PATH:/usr/local/scala/bin
+ 1675  export PATH=$PATH:/usr/local/scala/bin
+ 1676  scala -version
+ 1677  nano ~/.bashrc
+ 1678  exit
+ 1679  cd ../docker/
+ 1680  ls
+ 1681  rm -r neo4j/
+ 1682  sudo rm -r neo4j/
+ 1683  ls
+ 1684  exit
+ 1685  echo $SCALA_HOME
+ 1686  scala -version
+ 1687  scala
+ 1688  clear
+ 1689  spark
+ 1690  ls Downloads/
+ 1691  ls -l Downloads/
+ 1692  cd Downloads/
+ 1693  tar xvf spark-2.4.5-bin-hadoop2.7.tgz 
+ 1694  sudo su
+ 1695  nano ~/.bashrc
+ 1696  ls $SPARK_HOME
+ 1697  ls /usr/local/spark/
+ 1698  nano /usr/local/spark/README.md 
+ 1699  nano /usr/local/spark/RELEASE 
+ 1700  top /usr/local/spark/RELEASE 
+ 1701  cat /usr/local/spark/RELEASE 
+ 1702  spark-shell
+ 1703  gparted
+ 1704  spark-shell
+ 1705  nano ~/.bashrc
+ 1706  exit
+ 1707  echo $SPARK_HOME
+ 1708  spark-shell
+ 1709  nano ~/.bashrc
+ 1710  ls Downloads/
+ 1711  cd Downloads/
+ 1712  tar xvf spark-2.4.5-bin-hadoop2.7.tgz 
+ 1713  cd spark-2.4.5-bin-hadoop2.7/
+ 1714  ls
+ 1715  cd ..
+ 1716  sudo su
+ 1717  spark-shell
+ 1718  nano ~/.bashrc
+ 1719  exit
+ 1720  scala -version
+ 1721  spark-shell
+ 1722  ls /usr/local/spark/bin/
+ 1723  cd /usr/local/spark/
+ 1724  ls
+ 1725  ls sbin/
+ 1726  ls bin/
+ 1727  nano bin/docker-image-tool.sh 
+ 1728  spark-shell
+ 1729  cd ~/Downloads/
+ 1730  tar xvf scala-2.11.12.tgz 
+ 1731  mv scala-2.11.12 /usr/local/scala/
+ 1732  nano ~/.bashrc
+ 1733  scala -version
+ 1734  exit
+ 1735  scala -version
+ 1736  cd Downloads/
+ 1737  tar xvf scala-2.11.12.tgz 
+ 1738  mv scala-2.11.12 /usr/local/scala
+ 1739  sudo rm -r /usr/local/scala/
+ 1740  mv scala-2.11.12 /usr/local/scala
+ 1741  sudo su
+ 1742  scala -version
+ 1743  tar xvf scala-2.11.12.tgz 
+ 1744  sudo su
+ 1745  exit
+ 1746  scala -version
+ 1747  scala
+ 1748  spark-shell
+ 1749  apt policy scala
+ 1750  sudo su
+ 1751  nano ~/.bashrc
+ 1752  which java
+ 1753  nano ~/.bashrc
+ 1754  echo $JAVA_HOME
+ 1755  cd Development/e6895/tutorials/
+ 1756  scalac scala_hello.scala 
+ 1757  scala scala_hello.scala 
+ 1758  ls /usr/bin/java
+ 1759  ls /usr/lib/jvm/
+ 1760  nano ~/.bashrc
+ 1761  cd Development/e6895/tutorials/
+ 1762  scala scala_hello.scala 
+ 1763  nano ~/.bashrc
+ 1764  sudo touch /usr/lib/jvm/java-8-openjdk-amd64/release
+ 1765  scala scala_hello.scala 
+ 1766  ls /usr/lib/jvm/java-8-open
+ 1767  ls /usr/lib/jvm
+ 1768  nano ~/.bashrc
+ 1769  cd Development/e6895/tutorials/
+ 1770  scala scala_hello.scala 
+ 1771  nano ~/.bashrc
+ 1772  exit
+ 1773  cd Development/e6895/tutorials/
+ 1774  scala scala_hello.scala 
+ 1775  ./sbin/start-master.sh
+ 1776  start-master.sh
+ 1777  ls sbin
+ 1778  ls $SPARK/sbin
+ 1779  ./$SPARK/sbin/start-master.sh
+ 1780  ./$SPARK_HOME/sbin/start-master.sh
+ 1781  $SPARK_HOME/sbin/start-master.sh
+ 1782  $SPARK_HOME/sbin/start-slave.sh spark://zeus:7077
+ 1783  sbt package 
+ 1784  mvn
+ 1785  sudo apt-get install maven -y
+ 1786  mvn -version
+ 1787  ls
+ 1788  cd WordCount/
+ 1789  mvn archetype:generate
+ 1790  sudo -i
+ 1791  sudo apt-get install baobab 
+ 1792  sudo -i
+ 1793  ifconfig
+ 1794  cd Development/e6895/
+ 1795  git status
+ 1796  git add --all
+ 1797  git commit -m "preprocess: assigning goals at random"
+ 1798  git push origin master
+ 1799  git add .
+ 1800  git log
+ 1801  git commit -m "preprocess: cleaned code, ready for quantile calculations"
+ 1802  git push origin master
+ 1803  git add .
+ 1804  git commit -m "preprocess: quintile calcs added; now assigning goals"
+ 1805  git push origin master
+ 1806  git add .
+ 1807  git commit -m "preprocess: goals now assigned by quintile rank"
+ 1808  git push origin master
+ 1809  nano parentswifi.txt
+ 1810  spark-shell -i DatasetEmulator.scala -deprecation
+ 1811  cd Development/e6895/e6895-maven/src/main/scala/edu/columbia/advbigdata/preprocess/
+ 1812  spark-shell -i DatasetEmulator.scala 
+ 1813  spark-shell -i DatasetEmulator.scala -deprecation
+ 1814  history
+ 1815  top
+ 1816  kill -9 17655
+ 1817  ls
+ 1818  ./start_neo4j_docker.sh 
+ 1819  nano start_neo4j_docker.sh 
+ 1820  docker -ps -a
+ 1821  nano start_neo4j_docker.sh 
+ 1822  docker ps -a
+ 1823  ls
+ 1824  cd ..
+ 1825  ls
+ 1826  cd tutorials/
+ 1827  ls
+ 1828  cd WordCount/
+ 1829  ls
+ 1830  nano DATAPROC.md 
+ 1831  nano ../../scripts/dataproc_spark_submit.sh 
+ 1832  cd ../../
+ 1833  cd scripts/
+ 1834  ./dataproc_spark_submit.sh 
+ 1835  ./stop_neo4j_docker.sh 
+ 1836  docker ps -a
+ 1837  cd Development/e6895
+ 1838  git log
+ 1839  git checkout -b err_handling
+ 1840  branch
+ 1841  git branch
+ 1842  git push -u origin err_handling
+ 1843  git checkout master
+ 1844  git branch
+ 1845  git log
+ 1846  git log --oneline
+ 1847  ls
+ 1848  git reset --hard 63fff5f e6895-maven/src/main/scala/edu/columbia/advbigdata/preprocess/*
+ 1849  git reset --hard 63fff5f e6895-maven/src/main/scala/edu/columbia/advbigdata/preprocess/DatasetEmulator.scala
+ 1850  git stash
+ 1851  git reset 63fff5f e6895-maven/src/main/scala/edu/columbia/advbigdata/preprocess/DatasetEmulator.scala
+ 1852  git branch
+ 1853  git status
+ 1854  git add --al
+ 1855  git status
+ 1856  git add .
+ 1857  git commit -m "preprocess: bug {goals are not consistent when querying and do not match goal_cnt}"
+ 1858  git push origin master
+ 1859  git stash show -p
+ 1860  git add --all
+ 1861  git commit -m "preprocess: added some error catching and helper functions; bug {goals are still scrambled}"
+ 1862  git push origin master
+ 1863  ls
+ 1864  cd scripts/
+ 1865  ls
+ 1866  history
+ 1867  nano dataproc_create_cluster.sh 
+ 1868  ls
+ 1869  ./dataproc_create_cluster.sh 
+ 1870  ls
+ 1871  cd data/
+ 1872  cd IPIP-FFM-data-8Nov2018/
+ 1873  ls
+ 1874  python modDataset.py 
+ 1875  ls
+ 1876  python modDataset.py 
+ 1877  ls
+ 1878  ./shotcut 
+ 1879  suso apt install Kdenlive
+ 1880  sudo apt install Kdenlive
+ 1881  sudo apt install kdenlive
+ 1882  cd ~/Development/e6895
+ 1883  nano .gitignore 
+ 1884  git status
+ 1885  git add .
+ 1886  git commit -m "ignore progress/ directory"
+ 1887  git push origin master
+ 1888  cd Development/e6895/
+ 1889  echo $PROJET_DIR
+ 1890  echo $PROJECT_DIR
+ 1891  cd e6895-maven/src/main/scala/edu/columbia/advbigdata/preprocess/
+ 1892  spark-shell -i DatasetEmulator.scala -deprecation
+ 1893  gsutil copy *.csv gs://eecs-e6895-bucket/input
+ 1894  cd data/names/
+ 1895  python us_names.py 
+ 1896  ls
+ 1897  cd ../
+ 1898  git status
+ 1899  git add .
+ 1900  git commit -m "edge network for OPN working, but only for 1k nodes; working on neo4j"
+ 1901  git push origin master
+ 1902  cd /home/christnp/Development/e6895/scripts
+ 1903  ls
+ 1904  cd ../data/IPIP-NEO/release/
+ 1905  ./submit_job.sh 
+ 1906  ./create_cluster.sh 
+ 1907  ./submit_job.sh 
+ 1908  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1909  ./create_cluster.sh 
+ 1910  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1911  ./create_cluster.sh 
+ 1912  pip install --upgrade google-cloud-logging --user
+ 1913  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1914  ./create_cluster.sh 
+ 1915  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1916  ./create_cluster.sh 
+ 1917  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1918  ./create_cluster.sh 
+ 1919  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1920  ./create_cluster.sh 
+ 1921  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1922  ./create_cluster.sh 
+ 1923  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1924  nano create_cluster.sh 
+ 1925  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1926  ./create_cluster.sh 
+ 1927  nano create_cluster.sh 
+ 1928  ./create_cluster.sh 
+ 1929  nano create_cluster.sh 
+ 1930  ./create_cluster.sh 
+ 1931  gsutil cp ipipneo_parser.py gs://eecs-e6895-bucket/input/ && ./submit_job.sh
+ 1932  cd Development/e6895/
+ 1933  git add .
+ 1934  git commit -m "have new dataset being scored; changing to z-scoring now"
+ 1935  git push origin master
+ 1936  git add .
+ 1937  git commit "added z-scores and modified quint process"
+ 1938  git commit -m "added z-scores and modified quint process"
+ 1939  git push origin master
+ 1940  git add .
+ 1941  git commit -m "cleaned up for the night"
+ 1942  git push origin master
+ 1943  cd e6895-maven/
+ 1944  cd e6895-maven/
+ 1945  mvn clean install
+ 1946  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1947  scala
+ 1948  mvn clean install
+ 1949  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1950  mvn clean install
+ 1951  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1952  spark-shell
+ 1953  f
+ 1954  fg
+ 1955  spark-shell
+ 1956  fg
+ 1957  mvn clean install
+ 1958  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1959  mvn clean install
+ 1960  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1961  fg
+ 1962  mvn clean install
+ 1963  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1964  spark-shell
+ 1965  mvn clean install
+ 1966  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1967  mvn clean install
+ 1968  mvn clean install~
+ 1969  mvn clean install
+ 1970  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1971  mvn clean install
+ 1972  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1973  mvn clean install
+ 1974  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1975  mvn clean install
+ 1976  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1977  mvn clean install
+ 1978  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1979  mvn clean install
+ 1980  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1981  mvn clean install
+ 1982  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1983  mvn clean install
+ 1984  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1985  mvn clean install
+ 1986  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1987  mvn clean install
+ 1988  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1989  mvn clean install
+ 1990  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1991  mvn clean install
+ 1992  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1993  mvn clean install
+ 1994  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1995  mvn clean install
+ 1996  spark-shell --jars target/personality-project_0.1-0.0.3.jar 
+ 1997  cd /home/christnp/Development/e6895/scripts
+ 1998  ./dataproc_create_cluster.sh 
+ 1999  chmod +x dataproc_spark_dataemulator.sh 
+ 2000  ./dataproc_spark_dataemulator.sh 
+ 2001  ./dataproc_create_cluster.sh 
+ 2002  ./dataproc_spark_dataemulator.sh 
+ 2003  ./dataproc_create_cluster.sh 
+ 2004  ./dataproc_spark_dataemulator.sh 
+ 2005  ./dataproc_create_cluster.sh 
+ 2006  ./dataproc_spark_dataemulator.sh 
+ 2007  ./dataproc_create_cluster.sh 
+ 2008  ./dataproc_spark_dataemulator.sh 
+ 2009  ./dataproc_spark_simplenetwork.sh 
+ 2010  ./dataproc_create_cluster.sh 
+ 2011  ./dataproc_spark_simplenetwork.sh 
+ 2012  ./dataproc_spark_dataemulator.sh 
+ 2013  ./dataproc_spark_simplenetwork.sh 
+ 2014  history
+ 2015  history > history_20200414.txt

@@ -1,0 +1,243 @@
+Ivy Default Cache set to: /root/.ivy2/cache
+The jars for the packages stored in: /root/.ivy2/jars
+:: loading settings :: url = jar:file:/usr/lib/spark/jars/ivy-2.4.0.jar!/org/apache/ivy/core/settings/ivysettings.xml
+graphframes#graphframes added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-cafe1999-fee4-47db-9c10-1a2bf7863d4a;1.0
+	confs: [default]
+	found graphframes#graphframes;0.8.0-spark2.4-s_2.11 in spark-packages
+	found org.slf4j#slf4j-api;1.7.16 in central
+:: resolution report :: resolve 153ms :: artifacts dl 5ms
+	:: modules in use:
+	graphframes#graphframes;0.8.0-spark2.4-s_2.11 from spark-packages in [default]
+	org.slf4j#slf4j-api;1.7.16 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   2   |   0   |   0   |   0   ||   2   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-cafe1999-fee4-47db-9c10-1a2bf7863d4a
+	confs: [default]
+	0 artifacts copied, 2 already retrieved (0kB/6ms)
+20/04/16 17:32:16 INFO ComplexNetwork$: Starting application 'ComplexNetwork' at 2020-04-16T17:32:16.822Z.
+20/04/16 17:32:16 INFO ComplexNetwork$: Mode: RELEASE
+20/04/16 17:32:16 INFO ComplexNetwork$: Starting ComplexNetwork now...
+20/04/16 17:32:17 INFO org.spark_project.jetty.util.log: Logging initialized @2940ms
+20/04/16 17:32:17 INFO org.spark_project.jetty.server.Server: jetty-9.3.z-SNAPSHOT, build timestamp: unknown, git hash: unknown
+20/04/16 17:32:17 INFO org.spark_project.jetty.server.Server: Started @3094ms
+20/04/16 17:32:17 INFO org.spark_project.jetty.server.AbstractConnector: Started ServerConnector@3f92c349{HTTP/1.1,[http/1.1]}{0.0.0.0:4040}
+20/04/16 17:32:17 WARN org.apache.spark.scheduler.FairSchedulableBuilder: Fair Scheduler configuration file not found so jobs will be scheduled in FIFO order. To use fair scheduling, configure pools in fairscheduler.xml or set spark.scheduler.allocation.file to a file that contains the configuration.
+20/04/16 17:32:18 INFO org.apache.hadoop.yarn.client.RMProxy: Connecting to ResourceManager at analysis-m/10.138.15.194:8032
+20/04/16 17:32:18 INFO org.apache.hadoop.yarn.client.AHSProxy: Connecting to Application History server at analysis-m/10.138.15.194:10200
+20/04/16 17:32:20 INFO org.apache.hadoop.yarn.client.api.impl.YarnClientImpl: Submitted application application_1586838810693_0035
+20/04/16 17:32:25 INFO ComplexNetwork$: Cluster Specifications:
+20/04/16 17:32:25 INFO ComplexNetwork$: workerNodes: 1
+20/04/16 17:32:25 INFO ComplexNetwork$: coresPerNode: 4
+20/04/16 17:32:25 INFO ComplexNetwork$: coresPerCluster: 4
+20/04/16 17:32:25 INFO ComplexNetwork$: Calculated numPartitions: 16
+20/04/16 17:32:26 INFO ComplexNetwork$: Reading data from Google BQ table 'eecs-e6895-edu:emu_dataset.ipip120_10000'...
+20/04/16 17:32:27 INFO ComplexNetwork$: Data successfully read into Spark DataFrame!
+20/04/16 17:32:27 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Querying table eecs-e6895-edu.emu_dataset.ipip120_10000, parameters sent from Spark: requiredColumns=[NEU,goals,CSN_Q,NEU_Q,CSN_Z,NEU_Z,AGE,AGR,AGR_Q,OPN,EXT_Z,AGR_Z,uuid,OPN_Z,EXT_Q,CSN,DATE,COUNTRY,NAME,OPN_Q,SEX,EXT], filters=[]
+20/04/16 17:32:27 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Going to read from eecs-e6895-edu.emu_dataset.ipip120_10000 columns=[NEU, goals, CSN_Q, NEU_Q, CSN_Z, NEU_Z, AGE, AGR, AGR_Q, OPN, EXT_Z, AGR_Z, uuid, OPN_Z, EXT_Q, CSN, DATE, COUNTRY, NAME, OPN_Q, SEX, EXT], filter=''
+20/04/16 17:32:29 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Created read session for table 'eecs-e6895-edu.emu_dataset.ipip120_10000': projects/eecs-e6895-edu/locations/us/sessions/CAISDEtZSmlRYzFTWHRqWhoCaXIaAmpkGgJuYRoCb3MaAmluGgJqcRoCanIaAmpjGgJvahoCaXc
+20/04/16 17:32:36 INFO ComplexNetwork$: Rows in sampled DF: 100
+20/04/16 17:32:36 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Querying table eecs-e6895-edu.emu_dataset.ipip120_10000, parameters sent from Spark: requiredColumns=[NEU,goals,CSN_Q,NEU_Q,CSN_Z,NEU_Z,AGE,AGR,AGR_Q,OPN,EXT_Z,AGR_Z,uuid,OPN_Z,EXT_Q,CSN,DATE,COUNTRY,NAME,OPN_Q,SEX,EXT], filters=[]
+20/04/16 17:32:36 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Going to read from eecs-e6895-edu.emu_dataset.ipip120_10000 columns=[NEU, goals, CSN_Q, NEU_Q, CSN_Z, NEU_Z, AGE, AGR, AGR_Q, OPN, EXT_Z, AGR_Z, uuid, OPN_Z, EXT_Q, CSN, DATE, COUNTRY, NAME, OPN_Q, SEX, EXT], filter=''
+20/04/16 17:32:37 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Created read session for table 'eecs-e6895-edu.emu_dataset.ipip120_10000': projects/eecs-e6895-edu/locations/us/sessions/CAISDGNwQmhZZEN4MDBQThoCaXIaAmpkGgJuYRoCb3MaAmluGgJqcRoCanIaAmpjGgJvahoCaXc
+20/04/16 17:32:39 INFO ComplexNetwork$: Number of rows =  100
+20/04/16 17:32:39 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Querying table eecs-e6895-edu.emu_dataset.ipip120_10000, parameters sent from Spark: requiredColumns=[uuid,NAME,SEX,AGE,DATE,COUNTRY,AGR,OPN,NEU,EXT,CSN,AGR_Z,OPN_Z,NEU_Z,EXT_Z,CSN_Z,AGR_Q,OPN_Q,NEU_Q,EXT_Q,CSN_Q,goals], filters=[]
+20/04/16 17:32:39 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Going to read from eecs-e6895-edu.emu_dataset.ipip120_10000 columns=[uuid, NAME, SEX, AGE, DATE, COUNTRY, AGR, OPN, NEU, EXT, CSN, AGR_Z, OPN_Z, NEU_Z, EXT_Z, CSN_Z, AGR_Q, OPN_Q, NEU_Q, EXT_Q, CSN_Q, goals], filter=''
+20/04/16 17:32:40 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Created read session for table 'eecs-e6895-edu.emu_dataset.ipip120_10000': projects/eecs-e6895-edu/locations/us/sessions/CAISDHZhckRIZ1RONnBFbxoCaXIaAmpkGgJuYRoCb3MaAmluGgJqcRoCanIaAmpjGgJvahoCaXc
+20/04/16 17:32:40 INFO ComplexNetwork$: Number of partitions =  1
+20/04/16 17:32:40 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Querying table eecs-e6895-edu.emu_dataset.ipip120_10000, parameters sent from Spark: requiredColumns=[NEU,goals,CSN_Q,NEU_Q,CSN_Z,NEU_Z,AGE,AGR,AGR_Q,OPN,EXT_Z,AGR_Z,uuid,OPN_Z,EXT_Q,CSN,DATE,COUNTRY,NAME,OPN_Q,SEX,EXT], filters=[]
+20/04/16 17:32:40 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Going to read from eecs-e6895-edu.emu_dataset.ipip120_10000 columns=[NEU, goals, CSN_Q, NEU_Q, CSN_Z, NEU_Z, AGE, AGR, AGR_Q, OPN, EXT_Z, AGR_Z, uuid, OPN_Z, EXT_Q, CSN, DATE, COUNTRY, NAME, OPN_Q, SEX, EXT], filter=''
+20/04/16 17:32:41 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Created read session for table 'eecs-e6895-edu.emu_dataset.ipip120_10000': projects/eecs-e6895-edu/locations/us/sessions/CAISDEsyTlhMcDRKQWQ0VxoCaXIaAmpkGgJuYRoCb3MaAmluGgJqcRoCanIaAmpjGgJvahoCaXc
+20/04/16 17:32:44 INFO ComplexNetwork$: OPN_Z-Mean = 0.06150000000000001
+20/04/16 17:32:44 INFO ComplexNetwork$: OPN_Z-Stddev = 0.9891384221542596
+20/04/16 17:32:47 INFO ComplexNetwork$: edgeDF partitions = 16
+20/04/16 17:32:47 INFO ComplexNetwork$: vertDF partitions = 16
+20/04/16 17:32:47 INFO ComplexNetwork$: 'OPN_Z' finished exporting layer information...
+20/04/16 17:32:47 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Querying table eecs-e6895-edu.emu_dataset.ipip120_10000, parameters sent from Spark: requiredColumns=[NEU,goals,CSN_Q,NEU_Q,CSN_Z,NEU_Z,AGE,AGR,AGR_Q,OPN,EXT_Z,AGR_Z,uuid,OPN_Z,EXT_Q,CSN,DATE,COUNTRY,NAME,OPN_Q,SEX,EXT], filters=[]
+20/04/16 17:32:47 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Going to read from eecs-e6895-edu.emu_dataset.ipip120_10000 columns=[NEU, goals, CSN_Q, NEU_Q, CSN_Z, NEU_Z, AGE, AGR, AGR_Q, OPN, EXT_Z, AGR_Z, uuid, OPN_Z, EXT_Q, CSN, DATE, COUNTRY, NAME, OPN_Q, SEX, EXT], filter=''
+20/04/16 17:32:47 INFO com.google.cloud.spark.bigquery.direct.DirectBigQueryRelation: Created read session for table 'eecs-e6895-edu.emu_dataset.ipip120_10000': projects/eecs-e6895-edu/locations/us/sessions/CAISDFFZZVRhbjVGVnpsNRoCaXIaAmpkGgJuYRoCb3MaAmluGgJqcRoCanIaAmpjGgJvahoCaXc
+20/04/16 17:32:53 INFO ComplexNetwork$: CSN_Z-Mean = 0.04066999999999999
+20/04/16 17:32:53 INFO ComplexNetwork$: CSN_Z-Stddev = 1.0098623774124529
+20/04/16 17:32:54 INFO ComplexNetwork$: edgeDF partitions = 16
+20/04/16 17:32:54 INFO ComplexNetwork$: vertDF partitions = 16
+20/04/16 17:32:54 INFO ComplexNetwork$: 'CSN_Z' finished exporting layer information...
+20/04/16 17:32:54 INFO ComplexNetwork$: grOpn.vertices
++---+--------+-------------------+---+---+-------+--------------------+------+
+| id|    name|               date|age|sex|country|               goals| OPN_Z|
++---+--------+-------------------+---+---+-------+--------------------+------+
+| 64|    Evan|2001-06-30 21:46:28| 48|  M|    USA|[[[Give a speech ...|-0.675|
+| 79|  Brenda|2001-06-30 22:34:26| 17|  F|    USA|[[[To give 4 free...|-1.083|
+|196|  Temeka|2001-07-01 09:01:08| 22|  F|    USA|[[[Practice mindf...|-0.675|
+|263|    Anne|2001-07-01 14:14:51| 23|  F|    USA|[[[Get six-pack a...| 0.141|
+|317|Marielle|2001-07-01 17:21:42| 20|  F|    ECU|[[[Get down to si...|  2.18|
+|386|    Carl|2001-07-01 22:23:01| 25|  M|    USA|[[[Design an inno...| 0.385|
+|475| Marites|2001-07-01 04:23:43| 20|  F|    USA|[[[To increase th...| 0.548|
+|488| Caitlin|2001-07-01 05:59:24| 20|  F|    UKR|[[[Become a Gener...| 0.875|
+|499|    Noah|2001-07-01 08:04:21| 18|  M|    UKR|[[[Travel through...|-0.349|
+|804| Justine|2001-07-02 02:10:21| 17|  F|    CAN|[[[Have $3,000,00...| 0.467|
++---+--------+-------------------+---+---+-------+--------------------+------+
+only showing top 10 rows
+
+20/04/16 17:32:55 INFO ComplexNetwork$: grOpn.vertices.count = 100
+
+20/04/16 17:32:55 INFO ComplexNetwork$: grOpn.edges
++-----+---+------------------+
+|  src|dst|        OPN_Z_dist|
++-----+---+------------------+
+| 5028|263|             1.794|
+| 1197|263|             2.039|
+|10121|263|             1.794|
+| 3447|263|2.3649999999999998|
+| 2443|263|             1.794|
+|  317|263|             2.039|
+|  804|317|             1.713|
+| 1290|317|1.7950000000000002|
+| 2443|317|0.2450000000000001|
+| 7223|317|1.9580000000000002|
++-----+---+------------------+
+only showing top 10 rows
+
+20/04/16 17:32:56 INFO ComplexNetwork$: grOpn.edges.count = 862
+
+20/04/16 17:32:56 INFO ComplexNetwork$: grCsn.edges
++-----+---+------------------+
+|  src|dst|        CSN_Z_dist|
++-----+---+------------------+
+|10839|575|1.7680000000000002|
+| 6951|575|              1.02|
+| 1787|575|0.8840000000000001|
+| 5385|575|             2.176|
+| 4767|575|0.6120000000000001|
+| 3053|575|             1.224|
+| 8971|575|0.6120000000000001|
+| 8517|575|0.8840000000000001|
+|10844|575|             1.224|
+|10484|575|1.7680000000000002|
++-----+---+------------------+
+only showing top 10 rows
+
+20/04/16 17:32:57 INFO ComplexNetwork$: grCsn.edges.count = 1520
+
+20/04/16 17:33:18 INFO ComplexNetwork$: Opn pageRank results
++---+--------+-------------------+---+---+-------+--------------------+------+-------------------+
+| id|    name|               date|age|sex|country|               goals| OPN_Z|           pagerank|
++---+--------+-------------------+---+---+-------+--------------------+------+-------------------+
+| 64|    Evan|2001-06-30 21:46:28| 48|  M|    USA|[[[Give a speech ...|-0.675|0.20134228187919467|
+| 79|  Brenda|2001-06-30 22:34:26| 17|  F|    USA|[[[To give 4 free...|-1.083|0.20134228187919467|
+|196|  Temeka|2001-07-01 09:01:08| 22|  F|    USA|[[[Practice mindf...|-0.675|0.20134228187919467|
+|263|    Anne|2001-07-01 14:14:51| 23|  F|    USA|[[[Get six-pack a...| 0.141|  0.741858864671298|
+|317|Marielle|2001-07-01 17:21:42| 20|  F|    ECU|[[[Get down to si...|  2.18|  5.173655797287738|
+|386|    Carl|2001-07-01 22:23:01| 25|  M|    USA|[[[Design an inno...| 0.385| 0.8233113989702786|
+|475| Marites|2001-07-01 04:23:43| 20|  F|    USA|[[[To increase th...| 0.548| 0.9033169189693103|
+|488| Caitlin|2001-07-01 05:59:24| 20|  F|    UKR|[[[Become a Gener...| 0.875| 1.1417193894825088|
+|499|    Noah|2001-07-01 08:04:21| 18|  M|    UKR|[[[Travel through...|-0.349| 0.3212349430154893|
+|804| Justine|2001-07-02 02:10:21| 17|  F|    CAN|[[[Have $3,000,00...| 0.467| 0.8233113989702786|
++---+--------+-------------------+---+---+-------+--------------------+------+-------------------+
+only showing top 10 rows
+
++-----+---+------------------+--------------------+
+|  src|dst|        OPN_Z_dist|              weight|
++-----+---+------------------+--------------------+
+| 5028|263|             1.794| 0.02040816326530612|
+| 1197|263|             2.039|0.018867924528301886|
+| 3447|263|2.3649999999999998|0.014492753623188406|
+|10121|263|             1.794| 0.02040816326530612|
+| 2443|263|             1.794| 0.02040816326530612|
+|  317|263|             2.039|0.018867924528301886|
+| 4820|317|1.2240000000000002| 0.07692307692307693|
+| 1290|317|1.7950000000000002| 0.14285714285714285|
+| 2538|317|             1.713| 0.14285714285714285|
+| 6600|317|1.9580000000000002| 0.16666666666666666|
++-----+---+------------------+--------------------+
+only showing top 10 rows
+
+20/04/16 17:33:19 INFO ComplexNetwork$: Csn pageRank results
++----+---------+-------------------+---+---+-------+--------------------+------+-------------------+
+|  id|     name|               date|age|sex|country|               goals| CSN_Z|           pagerank|
++----+---------+-------------------+---+---+-------+--------------------+------+-------------------+
+| 575|     Iris|2001-07-01 13:09:03| 18|  F|    USA|[[[Get paid $10,0...|-0.718| 0.6888860518016106|
+| 628|  Marques|2001-07-01 15:46:22| 32|  M|    USA|[[[Own a Mercedes...| 1.321| 1.6261120083859368|
+| 670| Charlene|2001-07-01 17:55:41| 26|  F|    ZAF|[[[Attend the Cou...| 1.321| 1.6261120083859368|
+| 800|Salvatore|2001-07-02 01:59:16| 20|  M|    USA|[[[Design an inno...|-0.514| 0.5862222617115079|
+| 975|     Abby|2001-07-02 14:48:42| 24|  F|    USA|[[[Have 1,000,000...| 0.642| 0.5226589969534936|
+|1106|      Guy|2001-07-02 21:52:19| 40|  M|    USA|[[[Speak in 30 or...| 1.797| 3.0291098996781307|
+|1285|    Angie|2001-07-03 12:47:16| 25|  F|    USA|[[[Get paid $10,0...|  0.37| 0.4861761815223181|
+|1351| Randolph|2001-07-03 17:08:20| 27|  M|    USA|[[[Overcome the f...|-0.718| 0.6888860518016104|
+|1400|     Jane|2001-07-03 20:47:50| 29|  F|    USA|[[[World travel w...|-0.106|0.48707504505263177|
+|1682|    Ivory|2001-07-04 23:02:22| 18|  M|    CAN|[[[Complete NLP t...|-1.194| 1.1603291218054825|
++----+---------+-------------------+---+---+-------+--------------------+------+-------------------+
+only showing top 10 rows
+
++-----+---+------------------+--------------------+
+|  src|dst|        CSN_Z_dist|              weight|
++-----+---+------------------+--------------------+
+| 4767|575|0.6120000000000001|0.043478260869565216|
+| 6951|575|              1.02|             0.03125|
+|10844|575|             1.224| 0.02631578947368421|
+|10839|575|1.7680000000000002|0.016129032258064516|
+| 3053|575|             1.224| 0.02631578947368421|
+| 8971|575|0.6120000000000001|0.043478260869565216|
+| 8517|575|0.8840000000000001| 0.03333333333333333|
+| 1787|575|0.8840000000000001| 0.03333333333333333|
+| 5385|575|             2.176| 0.01282051282051282|
+|10484|575|1.7680000000000002|0.016129032258064516|
++-----+---+------------------+--------------------+
+only showing top 10 rows
+
+20/04/16 17:33:22 INFO ComplexNetwork$: Opn connected components results
+20/04/16 17:33:22 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Start connected components with run ID 34bdc02d.
+20/04/16 17:33:22 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Using gs://eecs-e6895-bucket/tmp/948d21ee-4a09-4f14-aa82-28fe2ad92ff9/connected-components-34bdc02d for checkpointing with interval 2.
+20/04/16 17:33:22 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Preparing the graph for connected component computation ...
+20/04/16 17:33:24 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Found 431 edges after preparation.
+20/04/16 17:33:37 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Sum of assigned components in iteration 1: 18147.
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Sum of assigned components in iteration 2: 18147.
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Connected components converged in 2 iterations.
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 34bdc02d] Join and return component assignments with original vertex IDs.
++---+--------+-------------------+---+---+-------+--------------------+------+---------+
+| id|    name|               date|age|sex|country|               goals| OPN_Z|component|
++---+--------+-------------------+---+---+-------+--------------------+------+---------+
+| 64|    Evan|2001-06-30 21:46:28| 48|  M|    USA|[[[Give a speech ...|-0.675|       64|
+| 79|  Brenda|2001-06-30 22:34:26| 17|  F|    USA|[[[To give 4 free...|-1.083|       79|
+|196|  Temeka|2001-07-01 09:01:08| 22|  F|    USA|[[[Practice mindf...|-0.675|      196|
+|263|    Anne|2001-07-01 14:14:51| 23|  F|    USA|[[[Get six-pack a...| 0.141|      263|
+|317|Marielle|2001-07-01 17:21:42| 20|  F|    ECU|[[[Get down to si...|  2.18|      263|
+|386|    Carl|2001-07-01 22:23:01| 25|  M|    USA|[[[Design an inno...| 0.385|      263|
+|475| Marites|2001-07-01 04:23:43| 20|  F|    USA|[[[To increase th...| 0.548|      263|
+|488| Caitlin|2001-07-01 05:59:24| 20|  F|    UKR|[[[Become a Gener...| 0.875|      263|
+|499|    Noah|2001-07-01 08:04:21| 18|  M|    UKR|[[[Travel through...|-0.349|      263|
+|804| Justine|2001-07-02 02:10:21| 17|  F|    CAN|[[[Have $3,000,00...| 0.467|      263|
++---+--------+-------------------+---+---+-------+--------------------+------+---------+
+only showing top 10 rows
+
+20/04/16 17:34:29 INFO ComplexNetwork$: Csn conn. comp. results
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Start connected components with run ID 0454d716.
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Using gs://eecs-e6895-bucket/tmp/948d21ee-4a09-4f14-aa82-28fe2ad92ff9/connected-components-0454d716 for checkpointing with interval 2.
+20/04/16 17:34:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Preparing the graph for connected component computation ...
+20/04/16 17:34:31 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Found 760 edges after preparation.
+20/04/16 17:34:38 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Sum of assigned components in iteration 1: 66061.
+20/04/16 17:36:24 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Sum of assigned components in iteration 2: 56925.
+20/04/16 17:36:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Sum of assigned components in iteration 3: 56925.
+20/04/16 17:36:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Connected components converged in 3 iterations.
+20/04/16 17:36:29 INFO org.graphframes.lib.ConnectedComponents$: [CC 0454d716] Join and return component assignments with original vertex IDs.
++----+---------+-------------------+---+---+-------+--------------------+------+---------+
+|  id|     name|               date|age|sex|country|               goals| CSN_Z|component|
++----+---------+-------------------+---+---+-------+--------------------+------+---------+
+| 575|     Iris|2001-07-01 13:09:03| 18|  F|    USA|[[[Get paid $10,0...|-0.718|      575|
+| 628|  Marques|2001-07-01 15:46:22| 32|  M|    USA|[[[Own a Mercedes...| 1.321|      575|
+| 670| Charlene|2001-07-01 17:55:41| 26|  F|    ZAF|[[[Attend the Cou...| 1.321|      575|
+| 800|Salvatore|2001-07-02 01:59:16| 20|  M|    USA|[[[Design an inno...|-0.514|      575|
+| 975|     Abby|2001-07-02 14:48:42| 24|  F|    USA|[[[Have 1,000,000...| 0.642|      575|
+|1106|      Guy|2001-07-02 21:52:19| 40|  M|    USA|[[[Speak in 30 or...| 1.797|      575|
+|1285|    Angie|2001-07-03 12:47:16| 25|  F|    USA|[[[Get paid $10,0...|  0.37|      575|
+|1351| Randolph|2001-07-03 17:08:20| 27|  M|    USA|[[[Overcome the f...|-0.718|      575|
+|1400|     Jane|2001-07-03 20:47:50| 29|  F|    USA|[[[World travel w...|-0.106|      575|
+|1682|    Ivory|2001-07-04 23:02:22| 18|  M|    CAN|[[[Complete NLP t...|-1.194|      575|
++----+---------+-------------------+---+---+-------+--------------------+------+---------+
+only showing top 10 rows
+
+20/04/16 17:36:29 INFO org.spark_project.jetty.server.AbstractConnector: Stopped Spark@3f92c349{HTTP/1.1,[http/1.1]}{0.0.0.0:4040}
+Job output is complete
