@@ -1,0 +1,83 @@
+/*
+Template Name: Dashtreme Admin
+Author: CODERVENT
+Email: codervent@gmail.com
+File: app-style
+*/
+
+/*  
+  - Google Font
+  - General
+  - Menu Sidebar Wrapper
+  - Page Content Wrapper
+  - Topbar Header
+  - Dropdown Menu
+  - User Details
+  - Logo
+  - SearachBar
+  - Cards
+  - Buttons
+  - User Cards
+  - Forms
+  - Tables
+  - Alerts
+  - Badges
+  - Paginations
+  - List Groups
+  - Nav Tabs & Pills
+  - Accordions
+  - Background Colors
+  - Borders
+  - Text colors
+  - CheckBoxes & Radios
+  - Responsive
+*/
+
+/* Google Font*/
+@import url('https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap');
+
+/* General */
+/* html {
+	 font-family: 'Roboto', sans-serif;
+	-webkit-text-size-adjust: 100%;
+	-ms-text-size-adjust: 100%;
+	-ms-overflow-style: scrollbar;
+	-webkit-tap-highlight-color: transparent
+} */
+#neo4j-viz {
+    width: 100%;
+    height: 100vh; 
+    /* border: 1px solid lightgray; */
+    /* box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.45) */
+    /* font: 22pt arial; */
+}
+.neo4j-form-control{
+    height: 100px;
+    width: 100%;
+    line-height: 60px; 
+    padding-left: 10px;
+    border: 0px solid #e5eaef;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff !important;
+}
+
+.neo4j-form-control:focus{
+background-color: rgba(0,0,0,.2);
+box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.45)
+}
+
+.network-icon{
+    width: 15px;
+    margin-right: 5px;
+}
+
+.neo4j-controls-upper { 
+    padding-bottom:5px 
+} 
+.neo4j-controls-lower { 
+    padding-top:5px 
+} 
+
+
+
+
