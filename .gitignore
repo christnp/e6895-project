@@ -1,0 +1,38 @@
+# ignore any file that starts with "notrack_" 
+notrack_*
+# ignore local archives
+_archive
+
+# do not track large data files (some exceptions, i.e. zipped data)
+# https://stackoverflow.com/questions/987142/make-gitignore-ignore-everything-except-a-few-files
+tutorials/*
+docker/*
+neo4j/*
+progress/*
+#data/_debug/*
+#*.dat
+# now using git-lfs to track large datafiles
+#data/** 
+#!data/**/
+#!data/**/.gitattributes
+# !data/**/*.zip 
+#!data/
+#data/*
+#!data/Goals/
+#data/Goals/*
+#!data/Goals/codebook.txt
+#!data/Goals/goals.csv
+#!data/Goals/goals-small.csv
+
+# do not track Maven target/metastore directories (these can be built from source)
+target/
+metastore_db/*
+
+# do not track keys
+gcp/key/
+
+# do not track VS Code, Open Office, etc.
+.directory
+.~lock.*
+.metals/
+e6895-workspace.code-workspace
