@@ -354,10 +354,10 @@ object ComplexNetwork {
     val sc = spark.sparkContext
     import spark.implicits._
     
-    /** build adjacency matrix */
-    // var fullRDD = RDD()    
-    // var modeOneRDD: RDD[MatrixEntry] = RDD[MatrixEntry]()
-    // var modeOneRDD = spark.sparkContext.emptyRDD[MatrixEntry] // moved to val _ = sc.union() below
+    /** 
+      * build adjacency matrix 
+      * */
+    // store each mode MatrixEntry in a sequence
     var mode1Seq = Seq[RDD[MatrixEntry]]()
     var mode2Seq = Seq[RDD[MatrixEntry]]()
     var mode3Seq = Seq[RDD[MatrixEntry]]()
@@ -369,26 +369,6 @@ object ComplexNetwork {
       logger.info(s"Adding '${layer}' layer...")      
       val V_o = ogdf.vertices
       val E_o = ogdf.edges
-      
-      // logger.info(s"Rows in V_o: ${V_o.count()}")
-      // logger.info(s"V_o =")
-      // logger.info(s"V_o Class = ${V_o.getClass}")
-      // V_o.orderBy(asc("id")).show()
-      
-
-      // logger.info(s"Rows in E_o: ${E_o.count()}")
-      // logger.info(s"E_o =")
-      // logger.info(s"E_o Class = ${E_o.getClass}")
-      // E_o.orderBy(asc("src")).show()
-
-      // var pairs = E_o.select("src","dst","OPN_Z_fit") //"weight" is from PageRank
-      // // val p_cols = pairs.columns
-      // // pairs = pairs.groupBy("src").agg(collect_list(struct(p_cols.head, p_cols.tail: _*)).as("adj")).collect//.agg(collect_list("dst")).collect//.collect.map(row => Seq(row._1.getInt(0),row._2.getInt(0)))
-      // // pairs = pairs.groupBy("src").agg(collect_list(struct(p_cols.head, p_cols.tail: _*)).as("adj")).select("adj")//.agg(collect_list("dst")).collect//.collect.map(row => Seq(row._1.getInt(0),row._2.getInt(0)))
-      // pairs = pairs.groupBy("src").agg(collect_list(struct("dst","OPN_Z_fit")).as("adj"))//.select("adj")//.agg(collect_list("dst")).collect//.collect.map(row => Seq(row._1.getInt(0),row._2.getInt(0)))
-      // pairs.collect.foreach(println)
-      // logger.info(s"pairs Class = ${pairs.getClass}")
-      // logger.info(s"pairs =")
       
       /** the edge DataFrame is the adjacency matrix with the vertex 
        *  DataFrame used to fill in non-connected nodes
@@ -424,272 +404,79 @@ object ComplexNetwork {
         .orderBy(asc("id"))
         .na.fill(0,adjCols)
 
-      println("New Joined DF")
+      logger.info(s"${layer} Adjacency DF")      
       adjDF.show()
-      // adjDF.printSchema()
-
+      
+      /** Convert the DataFrame to an RDD based adjacency matrix and
+       * calculate the mode-n matricizations (unfoldings)
+       * - refer to Kolda, et. al, "Tensor Decompositions and Applications"
+      */
       // get Adjacency matrix columns
       val matCols = adjCols.map(col(_))
-
       // set matrix dimension values
       val N = adjDF.count.toLong
       val L = layer_num
-      
-      /** now we will convert the DataFrame to an RDD based adjacency matrix 
-       *  NOTE: we choose
-      */
-   
-      /////////////////////////////////////////////////////////////////////////
-      // // val tmpRDD = adjDF.as("arr").as[Array[Int]].rdd
-      // //   .zipWithIndex()
-      // //   .map{ case(arr,index) => IndexedRow(index,Vectors.dense(arr.map(_.toDouble)))}
 
-      // // val adjRDD = new IndexedRowMatrix(tmpRDD)
-
-    
-      
-      // // example
-      // // mat = IndexedRowMatrix(mydataframe.map(row => new IndexedRow(row[0], Vectors.dense(row[1:]))))
-      // // val tmpRDD = adjDF.rdd//.as[Array[Int]].rdd
-      // //   .map(row => (row(0),row.toSeq.tail.toList)) // create an ("id",*links) tuple
-      // //   // .groupByKey()
-      // //   .map{ case(id,links) => 
-      // //     // val width = links.length
-      // //     // var link_z = Seq[(Int,Double)]()
-      // //     // links.zipWithIndex.map{case (elm,idx) => link_z=link_z:+((idx,elm.toDouble))}
-      // //     println(s"$id,$links")
-      // //     doubleArray = Array(r.getInt(5).toDouble, r.getInt(6).toDouble) 
-      // //     Vectors.dense(doubleArray) 
-      // //     // new IndexedRow(id, Vectors.dense(links.flatMap(_.toDouble)))
-      // //     // new IndexedRow(id, Vectors.sparse(width,link_z))
-      // //   }
-        
-      // // ref 1: https://stackoverflow.com/questions/51184319/convert-dataframe-into-spark-mllib-matrix-in-scala
-      // // ref 2: https://lamastex.github.io/scalable-data-science/sds/1/6/db/xtraResources/ProgGuides1_6/MLlibProgrammingGuide/dataTypes/006_IndexedRowMatrix/
-      // // TODO: use my own indices to align with userID
-      // val tmpRDD = adjDF.select(array(matCols:_*).as("arr")).as[Array[Double]].rdd
-      // // val tmpRDD = adjDF.select(adjCols.head,adjCols.tail:_*)
-      // // tmpRDD.as("arr").as[Array.ofDim[Double](tmpRDD.columns.length)].rdd
-      // .zipWithIndex()
-      // // .map{ case(arr,index) => IndexedRow(index, Vectors.dense(arr.map(_.toDouble)))}
-      // .map{ case(arr,index) => IndexedRow(index, Vectors.dense(arr.map(_.toDouble)))}
-
-      // val rowMat = new IndexedRowMatrix(tmpRDD)
-      
-      // val corMat = rowMat.toCoordinateMatrix()
-      // val corMat_T = corMat.transpose
-
-      // val tmpRDD2 = adjDF.select(array(matCols:_*).as("arr")).as[Array[Double]].rdd
-      // .zipWithIndex()
-      // .map{ case(arr,index) => IndexedRow(index, Vectors.dense(arr.map(_.toDouble+10)))}
-      // // val rdd = sc.union([tmpRDD, tmpRDD2])
-
-      // val uMat = new IndexedRowMatrix(tmpRDD ++ tmpRDD2)
-      // // print(s"uMat.collect()\n")
-      // // uMat.rows.collect.foreach(println)
-      // val uCorMat = uMat.toCoordinateMatrix()
-      // val uCorMat_T = uCorMat.transpose
-      // print(s"\nuCorMat.collect()\n")
-      // uCorMat.entries.collect.foreach(println)
-      /////////////////////////////////////////////////////////////////////////
-
-
-
-      // print(s"uCorMat.groupbByKey.collect()\n")
-      // uCorMat.entries.groupByKey.collect.foreach(println)
-      // print(s"uCorMat_T.collect()\n")
-      // uCorMat_T.entries.collect.foreach(println)
-
-      // uCorMat.entries.map{entry => println(entry)}
-      // entries.
-
-      // adjacency matrix as RDD (each mone-n matrix generated in parallel)
+      val startMat: Instant = Instant.now() 
       val adjRDD = adjDF.select(array(matCols:_*).as("arr")).as[Array[Double]].rdd
-      /**
-        * Mode-1 Matricization
-        */
+      // Mode-1 Matricization
       val tmpOneRDD = adjRDD.zipWithIndex
         .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, L*N+j, v.toDouble)}}
       mode1Seq = mode1Seq ++ Seq(tmpOneRDD)
-       /**
-        * Mode-2 Matricization
-        *  - Mode-2 is just Mode-1 Matrices transposed... swap just i and j
-        */
-       val tmpTwoRDD = adjRDD.zipWithIndex
+      // Mode-2 Matricization (i.e., flip i and j (transpose) of mode-1)
+      val tmpTwoRDD = adjRDD.zipWithIndex
         .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(j, L*N+i, v.toDouble)}}
       mode2Seq = mode2Seq ++ Seq(tmpTwoRDD)
-       /**
-        * Mode-3 Matricization
-        *  - Mode-3 is is a bit trickier... rows are fibers ("L") and columns 
-        *    represent each element in the fiber (i,j)
-        */
-       val tmpThreeRDD = adjRDD.zipWithIndex
+      // Mode-3 Matricization (i.e., rows=fibers (L-dim), columns=(i,j) element)
+      val tmpThreeRDD = adjRDD.zipWithIndex
         .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(L, i*N+j, v.toDouble)}}
       mode3Seq = mode3Seq ++ Seq(tmpThreeRDD)
-      
-      // val clock: Instant = Instant.now() 
-      // modeOneRDD = modeOneRDD.union(tmpOneRDD) // moved to sc.union([all]) below
-      // to combine by row instead use rddPart1.unionAll(rddPart2)
-      // println(s"Individual Union took: ${Duration.between(clock,Instant.now()).toMillis()} ms")
 
-      // print(s"\nmodeOneRDD.collect()\n")
-      // modeOneRDD.collect.foreach(x => println(x.getClass))
-      // modeOneRDD.collect.foreach(println)
-      // print(s"\n")
-      
-      // val entries: RDD[MatrixEntry] = sc.parallelize(Array(MatrixEntry(0,1,1),MatrixEntry(1,0,2),MatrixEntry(2,1,3)))
-      // print(s"\nentries.collect()\n")
-      // entries.collect.foreach(println)
-      // print(s"\n")
-
-      // val modeOne = uCorMat.entries
-        // .map{case MatrixEntry(i, j, v) => ((i, L*N+j), v)}
-      // val modeOne = new CoordinateMatrix(modeOneRDD)
-      // print(s"\nmodeOne.entires.collect()\n")
-      // modeOne.entries.collect.foreach(println)
-      // print(s"\n")
-
-      // val entriesCord = new CoordinateMatrix(entries)
-      // print(s"\nentriesCord.entires.collect()\n")
-      // entriesCord.entries.collect.foreach(println)
-      // print(s"\n")
-
-      // flatten coordinate matrix into a single row
-      // uCorMat.entries.map{ case(arr,index) => IndexedRow(index, Vectors.dense(arr.map(_.toDouble)))}
-
-        /** now we will apply the CP-ALS algorithm
-      * 
-      */
-      
-      // println("\nRDD contents:")
-      // tmpRDD.collect.foreach(println)
-      /**
-        * Convert to block matrix
-        */
-      // val m = rowMat.numRows()
-      // val n = rowMat.numCols()
-      // println("\nrowMat contents:")
-      // println(s"numRows = $m,\nnumCols = $n")
-      // rowMat.rows.collect.foreach(println)
-      // if(m != n)
-      // {
-      //   throw new IllegalArgumentException(
-      //     s"Adjacency matrix dimensions must agree. Rows: $m, Cols: $n")
-      // }
-      // println("\n")
-
-      // val blkMat: BlockMatrix = rowMat.toBlockMatrix(1,5).cache() // m = rows, n = cols must be int
-      // val blkMat_2: BlockMatrix = rowMat.toBlockMatrix(1,5).cache() // m = rows, n = cols must be int
-
-      // // Validate whether the BlockMatrix is set up properly. Throws an Exception when it is not valid.
-      // // Nothing happens if it is valid.
-      // blkMat.validate()
-
-      // // Calculate A^T A.
-      // val ata = blkMat.transpose.multiply(blkMat)
-      // val apa = blkMat.add(blkMat_2)
-
-      // val x = blkMat.numRows()
-      // val y = blkMat.numCols()
-    
-      // println("\nblkMat contents:")
-      // println(s"numRows = $x,\nnumCols = $y")
-      // blkMat.blocks.collect.foreach(println)
-      // println("\nblkMat.transpose.multiply(blkMat):")
-      // ata.blocks.collect.foreach(println)
-      // println("\nblkMat.add(blkMat_2)")
-      // apa.blocks.collect.foreach(println)
-      // // blkMat.rows.collect.foreach(println)
-    
+      logger.info(s"Layer ${layer} matricization took ${Duration.between(startMat,Instant.now()).toMillis()} ms")
     
     } // end foreach GraphFrame
 
+    /**
+      * Combine the mode-n matricies for each layer and create a CoordinateMatrix
+      */
     var unionStart: Instant = Instant.now() 
-    // modeOneRDD = sc.union(mode1Seq.head,mode1Seq.tail:_*)
     val mode1Rdd = sc.union(mode1Seq)
-    println(s"Mode-1 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    // print(s"\nmode1Rdd.collect()\n")
-    // // modeOneRDD.collect.foreach(x => println(x.getClass))
-    // mode1Rdd.collect.foreach(println)
-    // print(s"\n")
-
+    logger.info(s"Mode-1 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
     val mode1Mat = new CoordinateMatrix(mode1Rdd)
-    print(s"mode1Mat: numRows=${mode1Mat.numRows}, numCols=${mode1Mat.numCols}\n")
-    print(s"mode1Mat as IndexedRowMatrix\n")
-    mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    print(s"\n")
 
     unionStart = Instant.now() 
     val mode2Rdd = sc.union(mode2Seq)
-    println(s"Mode-2 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    // print(s"\nmode2Rdd.collect()\n")
-    // // modeOneRDD.collect.foreach(x => println(x.getClass))
-    // mode2Rdd.collect.foreach(println)
-    // print(s"\n")
-
+    logger.info(s"Mode-2 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
     val mode2Mat = new CoordinateMatrix(mode2Rdd)
-    print(s"mode2Mat: numRows=${mode2Mat.numRows}, numCols=${mode2Mat.numCols}\n")
-    print(s"mode2Mat as IndexedRowMatrix\n")
-    mode2Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    print(s"\n")
 
     unionStart = Instant.now() 
     val mode3Rdd = sc.union(mode3Seq)
-    println(s"Mode-3 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    // print(s"\nmode3Rdd.collect()\n")
-    // // modeOneRDD.collect.foreach(x => println(x.getClass))
-    // mode3Rdd.collect.foreach(println)
-    // print(s"\n")
-
+    logger.info(s"Mode-3 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
     val mode3Mat = new CoordinateMatrix(mode3Rdd)
-    print(s"mode3Mat: numRows=${mode3Mat.numRows}, numCols=${mode3Mat.numCols}\n")
-    print(s"mode3Mat as IndexedRowMatrix\n")
+
+    //////// DEBUG OUTPUT
+    println(s"mode1Mat: numRows=${mode1Mat.numRows}, numCols=${mode1Mat.numCols}\n")
+    println(s"mode1Mat as IndexedRowMatrix\n")
+    mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    println(s"\n")
+
+    println(s"mode2Mat: numRows=${mode2Mat.numRows}, numCols=${mode2Mat.numCols}\n")
+    println(s"mode2Mat as IndexedRowMatrix\n")
+    mode2Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    println(s"\n")
+
+    println(s"mode3Mat: numRows=${mode3Mat.numRows}, numCols=${mode3Mat.numCols}\n")
+    println(s"mode3Mat as IndexedRowMatrix\n")
     mode3Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    print(s"\n")
+    println(s"\n")
 
-    // You can do this by accessing the underlying blocks RDD. E.g. blockMatrix.blocks.filter{case ((x, y), matrix) => x == i && y == j} will give you an RDD[((Int, Int), Matrix)]
-    // println(s"\nadjRDD type = ${adjRDD.getClass}")
-    // println(s"adjRDD type = ${adjRDD.foreach(println)}\n")
+   /**
+     * Tensor factorization vi CP decomposition
+     */
+    // initialize factors
 
-    // val adjMat = adjDF.select()
     
-    
-    // val newCols = Seq("id") ++ adjDF.columns.filterNot(_ == "id").sorted
-    // val newCols = adjDF.columns.sortWith(_ < _)
-    // println(s"newCols = $newCols")
 
-    // adjDF = adjDF.select(newCols.head,newCols.tail:_*)
-
-    // var adjDF = tmp.join(edges, adjCols,"outer")
-    // var adjDF = edges.join(tmp, joinCond,"leftsemi")
-   
-
-    // V_o.select("id").rdd.map(r => r(0)).collect.foreach{ node=> //toSeq.asInstanceOf[Seq[String]]
-    //   println(s"\nnode = ${node}")
-    //   println(s"node Class = ${node.getClass}")
-
-    //   pairs.collect.foreach{pair =>
-    //     println(s"\npair Class = ${pair.getClass}")
-    //     println(s"node=$node, pair=$pair\n")
-    //   }
-    // }
-    // println("\n")
-
-    // pairs.foreach(println)
-
-    // logger.info(s"Running connected components...")
-    // val tmp = ogdf.connectedComponents.run()
-    // tmp.show()
-    // val V_a = agdf.vertices.select("id").collect.map(row => row.getLong(0))
-    // val E_a = agdf.edges.select("src","dst").groupBy("src").agg(collect_list("dst")).collect//.collect.map(row => Seq(row._1.getInt(0),row._2.getInt(0)))
-    // agdf.vertices.show()
-    // agdf.edges.show()
-    // logger.info(s"E_a =")
-    // logger.info(s"${E_a.foreach(println)}")
-    // logger.info(s"E_a Class = ${E_a .getClass}")
-
-    // var arr = Array(Array("a", "b", "c"))
-    //arr ++= Array(Array("d", "e"))
 
 
     return gdfs.head._2
