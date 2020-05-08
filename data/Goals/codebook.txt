@@ -1,0 +1,6 @@
+This data was collected from various help websites (current list below). The data was cleaned up manually such that the python script could parse and organize the goals. 
+
+List of websites scraped:
+* https://liveboldandbloom.com/12/habits/life-goals
+* https://fullylived.com/100-life-goals-list/
+* https://www.jackcanfield.com/blog/my-101-lifetime-goals-list-and-why-you-should-have-one-too/

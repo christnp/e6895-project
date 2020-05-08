@@ -1,0 +1,121 @@
+ID,Key,Sign,Adjusted,Facet,Description
+I1,N1,+,True,Anxiety,Worry about things.
+I2,E1,+,True,Friendliness,Make friends easily.
+I3,O1,+,True,Imagination,Have a vivid imagination.
+I4,A1,+,True,Trust,Trust others.
+I5,C1,+,True,Self-Efficacy,Complete tasks successfully.
+I6,N2,+,True,Anger,Get angry easily.
+I7,E2,+,True,Gregariousness,Love large parties.
+I8,O2,+,True,Artistic Interests,Believe in the importance of art.
+I9,A2,-,True,Morality,Use others for my own ends.
+I10,C2,+,True,Orderliness,Like to tidy up.
+I11,N3,+,True,Depression,Often feel blue.
+I12,E3,+,True,Assertiveness,Take charge.
+I13,O3,+,True,Emotionality,Experience my emotions intensely.
+I14,A3,+,True,Altruism,Love to help others.
+I15,C3,+,True,Dutifulness,Keep my promises.
+I16,N4,+,True,Self-Consciousness,Find it difficult to approach others.
+I17,E4,+,True,Activity Level,Am always busy.
+I18,O4,+,True,Adventurousness,Prefer variety to routine.
+I19,A4,-,True,Cooperation,Love a good fight.
+I20,C4,+,True,Achievement-Striving,Work hard.
+I21,N5,+,True,Immoderation,Go on binges.
+I22,E5,+,True,Excitement-Seeking,Love excitement.
+I23,O5,+,True,Intellect,Love to read challenging material.
+I24,A5,-,True,Modesty,Believe that I am better than others.
+I25,C5,+,True,Self-Discipline,Am always prepared.
+I26,N6,+,True,Vulnerability,Panic easily.
+I27,E6,+,True,Cheerfulness,Radiate joy.
+I28,O6,+,True,Liberalism,Tend to vote for liberal political candidates.
+I29,A6,+,True,Sympathy,Sympathize with the homeless.
+I30,C6,-,True,Cautiousness,Jump into things without thinking.
+I31,N1,+,True,Anxiety,Fear for the worst.
+I32,E1,+,True,Friendliness,Feel comfortable around people.
+I33,O1,+,True,Imagination,Enjoy wild flights of fantasy.
+I34,A1,+,True,Trust,Believe that others have good intentions.
+I35,C1,+,True,Self-Efficacy,Excel in what I do.
+I36,N2,+,True,Anger,Get irritated easily.
+I37,E2,+,True,Gregariousness,Talk to a lot of different people at parties.
+I38,O2,+,True,Artistic Interests,See beauty in things that others might not notice.
+I39,A2,-,True,Morality,Cheat to get ahead.
+I40,C2,-,True,Orderliness,Often forget to put things back in their proper place.
+I41,N3,+,True,Depression,Dislike myself.
+I42,E3,+,True,Assertiveness,Try to lead others.
+I43,O3,+,True,Emotionality,Feel others' emotions.
+I44,A3,+,True,Altruism,Am concerned about others.
+I45,C3,+,True,Dutifulness,Tell the truth.
+I46,N4,+,True,Self-Consciousness,Am afraid to draw attention to myself.
+I47,E4,+,True,Activity Level,Am always on the go.
+I48,O4,-,True,Adventurousness,Prefer to stick with things that I know.
+I49,A4,-,True,Cooperation,Yell at people.
+I50,C4,+,True,Achievement-Striving,Do more than what's expected of me.
+I51,N5,-,True,Immoderation,Rarely overindulge.
+I52,E5,+,True,Excitement-Seeking,Seek adventure.
+I53,O5,-,True,Intellect,Avoid philosophical discussions.
+I54,A5,-,True,Modesty,Think highly of myself.
+I55,C5,+,True,Self-Discipline,Carry out my plans.
+I56,N6,+,True,Vulnerability,Become overwhelmed by events.
+I57,E6,+,True,Cheerfulness,Have a lot of fun.
+I58,O6,+,True,Liberalism,Believe that there is no absolute right or wrong.
+I59,A6,+,True,Sympathy,Feel sympathy for those who are worse off than myself.
+I60,C6,-,True,Cautiousness,Make rash decisions.
+I61,N1,+,True,Anxiety,Am afraid of many things.
+I62,E1,-,True,Friendliness,Avoid contacts with others.
+I63,O1,+,True,Imagination,Love to daydream.
+I64,A1,+,True,Trust,Trust what people say.
+I65,C1,+,True,Self-Efficacy,Handle tasks smoothly.
+I66,N2,+,True,Anger,Lose my temper.
+I67,E2,-,True,Gregariousness,Prefer to be alone.
+I68,O2,-,True,Artistic Interests,Do not like poetry.
+I69,A2,-,True,Morality,Take advantage of others.
+I70,C2,-,True,Orderliness,Leave a mess in my room.
+I71,N3,+,True,Depression,Am often down in the dumps.
+I72,E3,+,True,Assertiveness,Take control of things.
+I73,O3,-,True,Emotionality,Rarely notice my emotional reactions.
+I74,A3,-,True,Altruism,Am indifferent to the feelings of others.
+I75,C3,-,True,Dutifulness,Break rules.
+I76,N4,+,True,Self-Consciousness,Only feel comfortable with friends.
+I77,E4,+,True,Activity Level,Do a lot in my spare time.
+I78,O4,-,True,Adventurousness,Dislike changes.
+I79,A4,-,True,Cooperation,Insult people.
+I80,C4,-,True,Achievement-Striving,Do just enough work to get by.
+I81,N5,-,True,Immoderation,Easily resist temptations.
+I82,E5,+,True,Excitement-Seeking,Enjoy being reckless.
+I83,O5,-,True,Intellect,Have difficulty understanding abstract ideas.
+I84,A5,-,True,Modesty,Have a high opinion of myself.
+I85,C5,-,True,Self-Discipline,Waste my time.
+I86,N6,+,True,Vulnerability,Feel that I'm unable to deal with things.
+I87,E6,+,True,Cheerfulness,Love life.
+I88,O6,-,True,Liberalism,Tend to vote for conservative political candidates.
+I89,A6,-,True,Sympathy,Am not interested in other people's problems.
+I90,C6,-,True,Cautiousness,Rush into things.
+I91,N1,+,True,Anxiety,Get stressed out easily.
+I92,E1,-,True,Friendliness,Keep others at a distance.
+I93,O1,+,True,Imagination,Like to get lost in thought.
+I94,A1,-,True,Trust,Distrust people.
+I95,C1,+,True,Self-Efficacy,Know how to get things done.
+I96,N2,-,True,Anger,Am not easily annoyed.
+I97,E2,-,True,Gregariousness,Avoid crowds.
+I98,O2,-,True,Artistic Interests,Do not enjoy going to art museums.
+I99,A2,-,True,Morality,Obstruct others' plans.
+I100,C2,-,True,Orderliness,Leave my belongings around.
+I101,N3,-,True,Depression,Feel comfortable with myself.
+I102,E3,-,True,Assertiveness,Wait for others to lead the way.
+I103,O3,-,True,Emotionality,Don't understand people who get emotional.
+I104,A3,-,True,Altruism,Take no time for others.
+I105,C3,-,True,Dutifulness,Break my promises.
+I106,N4,-,True,Self-Consciousness,Am not bothered by difficult social situations.
+I107,E4,-,True,Activity Level,Like to take it easy.
+I108,O4,-,True,Adventurousness,Am attached to conventional ways.
+I109,A4,-,True,Cooperation,Get back at others.
+I110,C4,-,True,Achievement-Striving,Put little time and effort into my work.
+I111,N5,-,True,Immoderation,Am able to control my cravings.
+I112,E5,+,True,Excitement-Seeking,Act wild and crazy.
+I113,O5,-,True,Intellect,Am not interested in theoretical discussions.
+I114,A5,-,True,Modesty,Boast about my virtues.
+I115,C5,-,True,Self-Discipline,Have difficulty starting tasks.
+I116,N6,-,True,Vulnerability,Remain calm under pressure.
+I117,E6,+,True,Cheerfulness,Look at the bright side of life.
+I118,O6,-,True,Liberalism,Believe that we should be tough on crime.
+I119,A6,-,True,Sympathy,Try not to think about the needy.
+I120,C6,-,True,Cautiousness,Act without thinking.
