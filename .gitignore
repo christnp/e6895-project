@@ -5,10 +5,10 @@ _archive
 
 # do not track large data files (some exceptions, i.e. zipped data)
 # https://stackoverflow.com/questions/987142/make-gitignore-ignore-everything-except-a-few-files
-tutorials/*
-docker/*
-neo4j/*
-progress/*
+tutorials/
+docker/
+neo4j/
+progress/
 #data/_debug/*
 #*.dat
 # now using git-lfs to track large datafiles
