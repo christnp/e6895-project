@@ -58,6 +58,7 @@
         <scala.compat.version>2.11</scala.compat.version>
         <json4s.jackson.version>3.6.7</json4s.jackson.version>
         <graphframes.version>0.8.0</graphframes.version>
+        <scalanlp.version>0.11.2</scalanlp.version>
         <neo4j.version>2.4.1-M1</neo4j.version>
         <slf4j.ersion>1.7.30</slf4j.ersion>
     </properties>
@@ -112,6 +113,14 @@
         <version>${gcp.bq.version}</version>
         <!-- <scope>provided</scope> -->
     </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.scalanlp/breeze -->
+    <dependency>
+        <groupId>org.scalanlp</groupId>
+        <artifactId>breeze_${scala.compat.version}</artifactId>
+        <version>${scalanlp.version}</version>
+    </dependency>
+
     
     <!-- https://mvnrepository.com/artifact/org.scala-lang/scala-library -->
     <dependency>

@@ -31,6 +31,9 @@ import org.apache.spark.graphx._
 // graphframes_2.11 artifact
 import org.graphframes._
 
+// breeze_2.11 artifact
+import breeze.linalg.{pinv,DenseMatrix}
+
 // neo4j-spark-connector artifact
 import org.neo4j.spark._
 import org.neo4j.spark.dataframe._
@@ -297,16 +300,89 @@ object ComplexNetwork {
   /**
     * 
     *
-    * @param ogdf
-    * @param cgdf
-    * @param egdf
-    * @param agdf
-    * @param ngdf
-    * @param partitions
-    * @param csv
-    * @param persist
-    * @param verbose
+    * @param dim
+    * @param rank
+    * 
+    * Ref: https://stackoverflow.com/questions/29869567/spark-distributed-matrix-multiply-and-pseudo-inverse-calculating
     */
+  // def pseudoInverse(matrix : IndexedRowMatrix) : IndexedRowMatrix = {
+  //   // val m = new RowMatrix(sc.parallelize(Seq(Vectors.dense(4, 3), Vectors.dense(3, 2))))
+  //   val k = matrix.numRows
+
+  //   val svd = matrix.computeSVD(2, true)
+  //   val v = svd.V
+  //   val sInvArray = svd.s.toArray.toList.map(x => 1.0 / x).toArray
+  //   val sInverse = new DenseMatrix(2, 2, Matrices.diag(Vectors.dense(sInvArray)).toArray)
+  //   val uArray = svd.U.rows.collect.toList.map(_.toArray.toList).flatten.toArray
+  //   val uTranspose = new DenseMatrix(2, 2, uArray) // already transposed because DenseMatrix is column-major
+  //   val inverse = v.multiply(sInverse).multiply(uTranspose)
+  // }
+
+  /** Hardamard product of two IndexedRowMatrices
+    *  - this implementiaton of the Hardamard (element-wise) matrix
+    *    multiplication uses RDD-like structures
+    * @param left left IndexedRowMatrix
+    * @param right right IndexedRowMatrix
+    */
+  def hardamardProd(
+    left: IndexedRowMatrix, 
+    right: IndexedRowMatrix
+  ) : CoordinateMatrix = {
+    
+    //IndexedRowMatrix.rows
+    val tmp = (left.rows ++ right.rows)
+      .flatMap{case IndexedRow(i,vec) => 
+          vec.toArray.zipWithIndex.map{case (v,j) => ((i,j),v)}
+        }
+      .reduceByKey(_*_) // TODO: should I sortBy(key)?
+      .map{case(k,v) => MatrixEntry(k._1,k._2,v)}
+
+    return new CoordinateMatrix(tmp)
+  }
+
+  /**
+    * 
+    *
+    * @param dim dimension of the factor matrix
+    * @param rank desired rank of the factor matrix
+    */
+  def coordFactorInit(dim: Long, rank: Long) : CoordinateMatrix = {
+    val spark = this.sparkSession
+    val sc = spark.sparkContext
+    import spark.implicits._
+
+    // random Int generator
+    def elemInit = scala.util.Random.nextInt(2) // randomly choose between [0,2) (i.e., 0 or 1)
+    // A factor matrix initialization
+    val tmpFactRDD = sc.parallelize(Array.fill(dim.toInt,rank.toInt){elemInit})
+      .zipWithIndex
+      .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, j, v.toDouble)}}
+
+    return new CoordinateMatrix(tmpFactRDD)    
+  }
+
+
+   /**
+    * 
+    *
+    * @param dim dimension of the factor matrix
+    * @param rank desired rank of the factor matrix
+    */
+  def rowFactorInit(dim: Long, rank: Long) : IndexedRowMatrix = {
+    val spark = this.sparkSession
+    val sc = spark.sparkContext
+    import spark.implicits._
+
+    // random Int generator
+    def elemInit = scala.util.Random.nextInt(2) // randomly choose between [0,2) (i.e., 0 or 1)
+    // A factor matrix initialization
+    val tmpFactRDD = sc.parallelize(Array.fill(dim.toInt,rank.toInt){elemInit})
+      .zipWithIndex
+      .map{ case(arr,i) => IndexedRow(i,Vectors.dense(arr.map(_.toDouble)))}
+
+    return new IndexedRowMatrix(tmpFactRDD)
+  }
+
 
    /**
     * Function to ingest a DataFrame with layer column name identified
@@ -353,6 +429,10 @@ object ComplexNetwork {
     val spark = this.sparkSession
     val sc = spark.sparkContext
     import spark.implicits._
+
+    // Tensor parameters (some are placeholders)
+    var N_dim:Long = 0           // A,B dim = N_dim (node communities)
+    var L_dim:Long = gdfs.length.toLong // C dim = L_dim (layers)
     
     /** 
       * build adjacency matrix 
@@ -414,22 +494,22 @@ object ComplexNetwork {
       // get Adjacency matrix columns
       val matCols = adjCols.map(col(_))
       // set matrix dimension values
-      val N = adjDF.count.toLong
-      val L = layer_num
+      N_dim = adjDF.count
+      val L_num = layer_num
 
       val startMat: Instant = Instant.now() 
       val adjRDD = adjDF.select(array(matCols:_*).as("arr")).as[Array[Double]].rdd
       // Mode-1 Matricization
       val tmpOneRDD = adjRDD.zipWithIndex
-        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, L*N+j, v.toDouble)}}
+        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, L_num*N_dim+j, v.toDouble)}}
       mode1Seq = mode1Seq ++ Seq(tmpOneRDD)
       // Mode-2 Matricization (i.e., flip i and j (transpose) of mode-1)
       val tmpTwoRDD = adjRDD.zipWithIndex
-        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(j, L*N+i, v.toDouble)}}
+        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(j, L_num*N_dim+i, v.toDouble)}}
       mode2Seq = mode2Seq ++ Seq(tmpTwoRDD)
-      // Mode-3 Matricization (i.e., rows=fibers (L-dim), columns=(i,j) element)
+      // Mode-3 Matricization (i.e., rows=fibers (L_num-dim), columns=(i,j) element)
       val tmpThreeRDD = adjRDD.zipWithIndex
-        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(L, i*N+j, v.toDouble)}}
+        .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(L_num, i*N_dim+j, v.toDouble)}}
       mode3Seq = mode3Seq ++ Seq(tmpThreeRDD)
 
       logger.info(s"Layer ${layer} matricization took ${Duration.between(startMat,Instant.now()).toMillis()} ms")
@@ -437,22 +517,22 @@ object ComplexNetwork {
     } // end foreach GraphFrame
 
     /**
-      * Combine the mode-n matricies for each layer and create a CoordinateMatrix
+      * Combine the mode-n matrices for each layer and create a CoordinateMatrix
       */
     var unionStart: Instant = Instant.now() 
     val mode1Rdd = sc.union(mode1Seq)
     logger.info(s"Mode-1 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    val mode1Mat = new CoordinateMatrix(mode1Rdd)
+    val mode1Mat = new CoordinateMatrix(mode1Rdd) // assert: dim = N x N*L
 
     unionStart = Instant.now() 
     val mode2Rdd = sc.union(mode2Seq)
     logger.info(s"Mode-2 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    val mode2Mat = new CoordinateMatrix(mode2Rdd)
+    val mode2Mat = new CoordinateMatrix(mode2Rdd) // assert: dim = N x N*L
 
     unionStart = Instant.now() 
     val mode3Rdd = sc.union(mode3Seq)
     logger.info(s"Mode-3 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
-    val mode3Mat = new CoordinateMatrix(mode3Rdd)
+    val mode3Mat = new CoordinateMatrix(mode3Rdd) // assert: dim = L x N*N
 
     //////// DEBUG OUTPUT
     println(s"mode1Mat: numRows=${mode1Mat.numRows}, numCols=${mode1Mat.numCols}\n")
@@ -471,12 +551,114 @@ object ComplexNetwork {
     println(s"\n")
 
    /**
-     * Tensor factorization vi CP decomposition
+     * Tensor factorization via CP decomposition of rank R
+     * A = edges into node i, N x R (number of nodes)
+     * B = edges out of node j, N x R (number of nodes)
+     * C = personality rank, L x R (number of FFM layers)
      */
+    // tensor parameters
+    val R = 2 // rank/# of components
+
     // initialize factors
+    // def elemInit = scala.util.Random.nextDouble() // randomly choose between 0.0 and 1.0
+    // def elemInit = scala.util.Random.nextInt(2) // randomly choose between [0,2) (i.e., 0 or 1)
+    // // A factor matrix initialization
+    // val factARdd = sc.parallelize(Array.fill(N_dim.toInt,R){elemInit})
+    //   .zipWithIndex
+    //   .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, j, v.toDouble)}}
+
+    // val factA = new CoordinateMatrix(factARdd)
+    // println(s"factA: numRows=${factA.numRows}, numCols=${factA.numCols}\n")
+    // println(s"factA as IndexedRowMatrix\n")
+    // factA.toIndexedRowMatrix.rows.collect.foreach(println)
+    // val factA = coordFactorInit(N_dim,R)
+    val factA = rowFactorInit(N_dim,R)
+    println(s"\nfactA: numRows=${factA.numRows}, numCols=${factA.numCols}")
+    println(s"factA as IndexedRowMatrix")
+    // factA.toIndexedRowMatrix.rows.collect.foreach(println)
+    factA.rows.collect.foreach(println)
+
+    // val factB = coordFactorInit(N_dim,R)
+    val factB = rowFactorInit(N_dim,R)
+    println(s"\nfactB: numRows=${factB.numRows}, numCols=${factB.numCols}")
+    println(s"factB as IndexedRowMatrix")
+    // factB.toIndexedRowMatrix.rows.collect.foreach(println)
+    factB.rows.collect.foreach(println)
+
+    // val factC = coordFactorInit(L_dim,R)
+    val factC = rowFactorInit(L_dim,R)
+    println(s"\nfactC: numRows=${factC.numRows}, numCols=${factC.numCols}")
+    println(s"factC as IndexedRowMatrix")
+    // factC.toIndexedRowMatrix.rows.collect.foreach(println)
+    factC.rows.collect.foreach(println)
+    
+    // Khatri-Rao product (CkB=NLxR,CkA=NLxR,BkA=NNxR)
+    // var CkB = 
+    // C^T C, B^T B are the Garmian matricies! 
+    // var AtA = factA.toIndexedRowMatrix.computeGramianMatrix()
+    // var BtB = factB.toIndexedRowMatrix.computeGramianMatrix()
+    // var CtC = factC.toIndexedRowMatrix.computeGramianMatrix()
+    var AtA = factA.computeGramianMatrix()
+    var BtB = factB.computeGramianMatrix()
+    var CtC = factC.computeGramianMatrix()
+
+    println(s"CtC = \n$CtC")
+    println(s"BtB = \n$BtB")
+
+    // intermediate step - convert to DenseMatrix
+    val M1M:DenseMatrix[Double] = new DenseMatrix[Double](CtC.numRows,CtC.numCols,CtC.toArray)
+    val M2M:DenseMatrix[Double] = new DenseMatrix[Double](BtB.numRows,BtB.numCols,BtB.toArray)
+    println(s"M1M = \n$M1M")
+    println(s"M2M = \n$M2M")
+
+    val tmp_breeze = M1M:*M2M
+
+    println("\nbreeze multiplication")
+    println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
+    println(tmp_breeze)
+    
+    // Spark test
+    val factBlkC = factC.toBlockMatrix
+    val factBlkB = factB.toBlockMatrix
+
+    val CtC_spark = (factBlkC.transpose).multiply(factBlkC)
+    val BtB_spark = (factBlkB.transpose).multiply(factBlkB)
+   
+    // val tmp_spark = BtB_spark.multiply(CtC_spark)
+    // println("\nspark multiplication")
+    // println(s"tmp_spark: numRows=${tmp_spark.numRows}, numCols=${tmp_spark.numCols}")
+    // tmp_spark.toIndexedRowMatrix.rows.collect.foreach(println)
+    // println("\n")
+
+    val BtBRDD = BtB_spark.toIndexedRowMatrix.rows
+    val CtCRDD = CtC_spark.toIndexedRowMatrix.rows
+
+    // println("\nCtC_spark as rdd")
+    // CtCRDD.collect.foreach(println)
+    // println("\nBtB_spark as rdd")
+    // BtBRDD.collect.foreach(println)
+    
+    val tmp = hardamardProd(CtC_spark.toIndexedRowMatrix,BtB_spark.toIndexedRowMatrix)
+    println("\nspark multiplication")
+    tmp.entries.collect.foreach(println)
+
+    // // Hardamard product of two IndexedRowMatrices
+    // //IndexedRowMatrix.rows
+    // val tmp = (CtCRDD ++ BtBRDD)
+    //   .flatMap{case IndexedRow(i,vec) => vec.toArray.zipWithIndex.map{case (v,j) => ((i,j),v)}}
+    //   .reduceByKey(_*_) // TODO: should I sortBy(key)?
+    //   .map{case(k,v) => MatrixEntry(k._1,k._2,v)}
+
+    // val tmp2 = new CoordinateMatrix(tmp)
+
+    // println("\nspark2 multiplication")
+    // tmp2.entries.collect.foreach(println)
+
+      
+
+    var Ahat =  0//mode1Mat x CkB x pseudoinverse(CtC :* BtB)
 
     
-
 
 
     return gdfs.head._2
