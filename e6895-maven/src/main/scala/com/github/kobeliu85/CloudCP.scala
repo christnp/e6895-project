@@ -265,15 +265,16 @@ object CloudCP {
     updateM
   }
 
+  // NC: updated 5/9/20 to remove NaNs (.map(y => if (y.isNaN()) 0.0 else y))
   def NormalizeMatrix(matrix:IndexedRowMatrix,
                    L:BDV[Double]) ={
 
-    val map_M = matrix.rows.map(x =>
-      (x.index, BDV[Double](x.vector.toArray))).mapValues(x => x:/L)
+    val map_M = matrix.rows
+      .map(x => (x.index, BDV[Double](x.vector.toArray)))
+      .mapValues(x => (x:/L).map(y => if (y.isNaN()) 0.0 else y))
 
     val NL_M:IndexedRowMatrix = new IndexedRowMatrix(map_M
-      .map(x =>
-        IndexedRow(x._1, Vectors.dense(x._2.toArray))))
+      .map(x => IndexedRow(x._1, Vectors.dense(x._2.toArray))))
 
     NL_M
   }
