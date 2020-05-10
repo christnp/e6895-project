@@ -967,12 +967,14 @@ object ComplexNetwork {
     // val tmpB = factB.rows
     
     // val tmpLKR = factC.rows.map{case IndexedRow(i,vec) => (i,(0,vec.toArray))} // (row,(L,vector))
-    val tmpLKR = factC.rows.map{case IndexedRow(i,vec) => (i,vec.toArray)} // (row,(L,vector))
+    val tmpLKR = factC.rows.map{case IndexedRow(i,vec) => (i,vec)} // (row,(L,vector))
     // val tmpRKR = factB.rows.map{case IndexedRow(i,vec) => (i,(1,vec.toArray))} // (row,(R,vector))
-    val tmpRKR = factB.rows.map{case IndexedRow(i,vec) => (i,vec.toArray)} // (row,(R,vector))
+    val tmpRKR = factB.rows.map{case IndexedRow(i,vec) => (i,vec)} // (row,(R,vector))
     // val tmpKR = (tmpLKR ++ tmpRKR)//.map{ case IndexedRow(i,vec) => }
     val tmpKR = tmpLKR.cartesian(tmpRKR) // (left(0:i),right(0:j))
-      .map{case ((li,lv),(ri,rv)) => lv.zip(rv)}
+      .map{case ((li,lv),(ri,rv)) => lv.toArray.zip(rv.toArray).map{ case (a, b) => a * b }}
+      .zipWithIndex()
+      .map{ case(arr,i) => IndexedRow(i,Vectors.dense(arr.map(_.toDouble)))}
       // .flatMap{case (i,(pos,vec)) => vec.toArray.zipWithIndex.map{case (v,j) => (j,(i,(pos,v)))}} // (col, (row (L/R,Val)))
       // .groupByKey()
       // .map{case IndexedRow(i,vec) =>(i,vec)}
@@ -984,12 +986,13 @@ object ComplexNetwork {
       // .map{case(k,v) => (k,v)}
 
     println(s"tmpKR")
+    // tmpKR.map{case(k,v) => (k,v)}.collect.foreach{case (arr,i) => arr.map{m => print(s"> ($i,$m) >")}}
     tmpKR.collect.foreach(println)
     println("\n")
 
-    // println(s"Cartesian")
-    // val tmpKR = tmpLKR.cartesian(tmpRKR)
-    // println("\n")
+    println(s"Cartesian")
+    tmpLKR.cartesian(tmpRKR).collect.foreach(println)
+    println("\n")
 
     // IndexedRowMatrix.multiply(Matrix) // so mpPseudoInv needs to be a Matrix?!
 
