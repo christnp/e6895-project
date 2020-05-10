@@ -18,7 +18,7 @@ import org.apache.spark.sql.{DataFrame,Row,Column}
 // import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType};
 
 // spark-mllib_2.11 artifact (for RDD matrix operations)
-import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.{Vector,Vectors,Matrix,Matrices}
 import org.apache.spark.mllib.linalg.distributed._ //{RowMatrix,IndexedRow,IndexedRowMatrix,BlockMatrix,MatrixEntry}
 
 // spark-bigquery_2.11 artifacts
@@ -32,7 +32,7 @@ import org.apache.spark.graphx._
 import org.graphframes._
 
 // breeze_2.11 artifact
-import breeze.linalg.{pinv,DenseMatrix}
+import breeze.linalg.{pinv,DenseMatrix => BDM,DenseVector => BDV}
 
 // neo4j-spark-connector artifact
 import org.neo4j.spark._
@@ -40,6 +40,7 @@ import org.neo4j.spark.dataframe._
 
 // org.scala-lang artifacts
 import scala.util.Random 
+import scala.util.control.Breaks
 import scala.collection._
 
 // slf4j-api artifact
@@ -53,6 +54,7 @@ import java.time.format._
 // project specific packages
 import edu.columbia.advbigdata.utils.sparkutils._
 import edu.columbia.advbigdata.utils.helpers._
+import com.github.kobeliu85.CloudCP
 import java.{util => ju}
 
 
@@ -312,11 +314,54 @@ object ComplexNetwork {
   //   val svd = matrix.computeSVD(2, true)
   //   val v = svd.V
   //   val sInvArray = svd.s.toArray.toList.map(x => 1.0 / x).toArray
-  //   val sInverse = new DenseMatrix(2, 2, Matrices.diag(Vectors.dense(sInvArray)).toArray)
+  //   val sInverse = new BDM(2, 2, Matrices.diag(Vectors.dense(sInvArray)).toArray)
   //   val uArray = svd.U.rows.collect.toList.map(_.toArray.toList).flatten.toArray
-  //   val uTranspose = new DenseMatrix(2, 2, uArray) // already transposed because DenseMatrix is column-major
+  //   val uTranspose = new BDM(2, 2, uArray) // already transposed because BDM is column-major
   //   val inverse = v.multiply(sInverse).multiply(uTranspose)
   // }
+
+  /** Moore-Penrose Pseudo-Inverse
+    *  - this implementiaton of the Hardamard (element-wise) matrix
+    *    multiplication uses RDD-like structures
+    * @param rowMat indexedRowMatrix matrix
+    */
+  def mpPseudoInv(rowMat: IndexedRowMatrix) : Matrix = {
+
+    val spark = this.sparkSession
+    val sc = spark.sparkContext
+    import spark.implicits._
+
+    // TODO: this seems expensive. 
+    val localMat = rowMat.toBlockMatrix.toLocalMatrix
+    val rows = localMat.numRows
+    val cols = localMat.numCols
+    val denseMat = new BDM[Double](rows,cols,localMat.toArray)
+    // val inverse = CloudCP.BDMtoMatrix(pinv(denseMat))
+    
+    
+    return Matrices.dense(rows, cols, pinv(denseMat).data)
+    
+    /// OLD --> 
+    // val tmpInvRDD = sc.parallelize(inverse.toArray)
+    //   .zipWithIndex
+    //   // .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, j, v.toDouble)}}
+    //   // .map{ case(arr,i) => IndexedRow(i,Vectors.dense(arr.map(_.toDouble)))}
+    //   .map{ case(arr,i) => IndexedRow(i,Vectors.dense(arr))}
+
+    // // output as CoordinateMatrix
+    // // val output = inverse.toArray.zipWithIndex.map{case(arr,i) => (i,arr)}//IndexedRow(i,Vectors.dense(arr.toDouble))}
+    // // output.foreach(println)
+    
+    // // println(s"inverse.getClass=${inverse.getClass}")
+    // println(s"tmpInvRDD=}")
+    // tmpInvRDD.collect.foreach(println)
+
+    // // return new CoordinateMatrix(tmpInvRDD)    
+    // return new IndexedRowMatrix(tmpInvRDD)
+    // // TODO: add rows/cols as a hack to specify return dimensions...    
+    // return new IndexedRowMatrix(tmpInvRDD,rows,cols)    
+  }
+
 
   /** Hardamard product of two IndexedRowMatrices
     *  - this implementiaton of the Hardamard (element-wise) matrix
@@ -384,22 +429,269 @@ object ComplexNetwork {
   }
 
 
+  /**
+    * 3-Way Tensor CPD using Spark
+    *
+    * @param dim dimension of the factor matrix
+    * @param rank desired rank of the factor matrix
+    */
+  def tensor3CPD(
+    X1: IndexedRowMatrix, 
+    X2: IndexedRowMatrix, 
+    X3: IndexedRowMatrix, 
+    rank : Int = 2,
+    iterations : Int = 100,
+    tolerance : Double = 0.0001
+  ) = {
+    // val inputFile = "/users/cqwcy201101/Desktop/test.md"
+    // val output = "/users/cqwcy201101/Desktop/result/"
+
+    /*--------------------------------
+    val inputm1 =  "/Users/cqwcy201101/Desktop/MA.md"
+    val inputm2 =  "/Users/cqwcy201101/Desktop/MB.md"
+    */
+    val time_s:Double=System.nanoTime()
+    // val conf = new SparkConf().setAppName("TensorCP").setMaster("local").set("spark.ui.port","4040")
+    // val sc = new SparkContext(conf)
+    // val X1 = sc.textFile(inputFile)
+
+    val spark = this.sparkSession
+    val sc = spark.sparkContext
+    import spark.implicits._
+    
+    // val X1 = CloudCP.readFile(X1).cache()
+    // val X1_RDD = CloudCP.IndexedRowMatrixToRDD_V(X1)
+    val X1_RDD = X1.toRowMatrix.rows
+    // val X2_RDD = CloudCP.IndexedRowMatrixToRDD_V(X2)
+    val X2_RDD = X2.toRowMatrix.rows
+    // val X3_RDD = CloudCP.IndexedRowMatrixToRDD_V(X3)
+    val X3_RDD = X3.toRowMatrix.rows
+
+    println("X1_RDD")
+    X1_RDD.collect.foreach(println)
+/*
+    //-----------------------------
+    val MAdata = sc.textFile(inputm1)
+      .map(s => Vectors.dense(s.split(' ').map(_.toDouble)))
+
+    val MBdata = sc.textFile(inputm2)
+      .map(s => Vectors.dense(s.split(' ').map(_.toDouble)))
+    //----------------------------
+*/
+    // val SizeVecX1 = CloudCP.RDD_VtoRowMatrix(X1)
+    val SizeVecX1 = X1.toRowMatrix
+      .computeColumnSummaryStatistics().max
+    // val SizeVecX2 = CloudCP.RDD_VtoRowMatrix(X2)
+    val SizeVecX2 = X2.toRowMatrix
+      .computeColumnSummaryStatistics().max
+    // val SizeVecX3 = CloudCP.RDD_VtoRowMatrix(X3)
+    val SizeVecX3 = X3.toRowMatrix
+      .computeColumnSummaryStatistics().max
+
+    val SizeA:Long = SizeVecX1.apply(0).toLong+1
+    val SizeB:Long = SizeVecX2.apply(1).toLong+1
+    val SizeC:Long = SizeVecX3.apply(2).toLong+1
+    
+    println(s"SizeVecX1=$SizeVecX1,SizeVecX1.class=${SizeVecX1.getClass}")    
+    println(s"SizeA=$SizeA,SizeA.class=${SizeA.getClass}")
+
+    // rank
+    // val rank:Int = 2
+    val Dim_1:Int = 0 // TODO: What do these do? NC
+    val Dim_2:Int = 1
+    val Dim_3:Int = 2
+
+    // factor initialization 
+    // TODO: replace with my random [0,1] generator?
+    var MA:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeA,rank,sc)
+    var MB:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeB,rank,sc)
+    var MC:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeC,rank,sc)
+
+    println("MA")
+    MA.rows.collect.foreach(println)
+
+    var N:Int = 0
+
+/*
+    var MA:IndexedRowMatrix = new IndexedRowMatrix(MAdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
+    var MB:IndexedRowMatrix = new IndexedRowMatrix(MBdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
+    var MC:IndexedRowMatrix = new IndexedRowMatrix(MAdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
+*/
+
+    // calculate the initial "M^T M" components
+    var ATA = CloudCP.Compute_MTM_RowMatrix(MA)
+    var BTB = CloudCP.Compute_MTM_RowMatrix(MB)
+    var CTC = CloudCP.Compute_MTM_RowMatrix(MC)
+
+    println(s"ATA.class = ${ATA.getClass}, ATA=\n$ATA")
+
+    // initialize fit parameters
+    var Lambda:BDV[Double] = BDV.zeros(rank)
+    var fit:Array[Double] = Array(0.0, 0.0, 0.0)
+    var prev_fit:Array[Double] = Array(0.0, 0.0, 0.0)
+    var val_fit:Array[Double] = Array(0.0, 0.0, 0.0)
+
+    println(s"Lambda.class = ${Lambda.getClass}, Lambda=$Lambda")
+    println(s"fit.class = ${fit.getClass}, fit=$Lambda")
+    println(s"prev_fit.class = ${prev_fit.getClass}, prev_fit=$Lambda")
+    println(s"val_fit.class = ${val_fit.getClass}, val_fit=$Lambda")
+
+    /*
+        val testM1 = CalculateM1(X1,MB,MC,Dim_1,SizeA,rank,sc)
+        testM1.rows.collect().foreach(println)
+        val testM2 = CalculateM2(MB,MC)
+        println(testM2)
+        val testM1M1 = testM1.multiply(testM2)
+        testM1M1.rows.collect().foreach(println)
+
+        Lambda = UpdateLambda(testM1M1)
+        //val RDDLambda = sc.parallelize(Vector(Lambda))
+        //var boradambda = sc.broadcast(RDDLambda.collect())
+
+        println(Lambda)
+
+        val testM1M1_2 = testM1M1.rows.map(x => (x.index, BDV[Double](x.vector.toArray))).mapValues(x=> (x :/ Lambda))
+
+          //IndexedRow(x.index, Vectors.dense(((BDV[Double](x.vector.toArray)) :/ Lambda ).toArray)))
+        testM1M1_2.collect().foreach(println)
+
+        val testM1M2_3 = UpdateMatrix(X1,Lambda,MB,MC,Dim_1,SizeA,rank,sc)
+        testM1M2_3.rows.collect().foreach(println)
+    */
+
+
+    /*
+        val testB1 = CalculateM1(X1,MC,MA,Dim_2,SizeB,rank,sc)
+        testB1.rows.collect().foreach(println)
+        val testB2 = testB1.multiply(CalculateM2(MC,MA))
+        testB2.rows.collect().foreach(println)
+
+        for (i <- 0 until rank){
+          Lambda = UpdateLambda(testB2,i)
+          MB = UpdateMatrix(X1,Lambda,MC,MA,Dim_2,SizeB,rank,sc)
+
+        }
+        println(Lambda)
+        MB.rows.collect().foreach(println)
+    */
+
+
+    // loop until max iterationsions is reached OR error is within tolerance
+    var stage = 0
+    val loop = new Breaks
+    loop.breakable
+    {
+      for (i <- 0 until  iterations)
+      {
+        println("\n")
+        logger.info(s"Tensor CPD Stage $N")
+
+        ///////////////////////////// A
+        println("\n")
+        println("<<<< Starting MA\n")
+
+        MA = CloudCP.UpdateMatrix(X1_RDD,MB,MC,Dim_1,SizeA,rank,sc)
+        
+        println("MA after UpdateMatrix")
+        MA.rows.collect.foreach(println) 
+
+        Lambda = CloudCP.UpdateLambda(MA,i)
+        MA = CloudCP.NormalizeMatrix(MA,Lambda)
+        ATA = CloudCP.Compute_MTM_RowMatrix(MA)
+        println("MA Done >>>>\n")
+        println("MA after NormalizeMatrix")
+        MA.rows.collect.foreach(println)  
+        println(s"ATA.class = ${ATA.getClass}, ATA=\n$ATA")
+        println(s"Lambda.class = ${Lambda.getClass}, Lambda=$Lambda")
+
+        ///////////////////////////// B
+        println("\n")
+        println("<<<< Starting MB\n")
+        MB = CloudCP.UpdateMatrix(X2_RDD,MC,MA,Dim_2,SizeB,rank,sc)
+        
+        println("MB after UpdateMatrix")
+        MB.rows.collect.foreach(println)
+
+        Lambda =CloudCP.UpdateLambda(MB,i)
+        MB = CloudCP.NormalizeMatrix(MB,Lambda)
+        BTB = CloudCP.Compute_MTM_RowMatrix(MB)
+
+        println("MB Done >>>>\n")
+        println("MB after NormalizeMatrix")
+        MB.rows.collect.foreach(println)  
+        println(s"BTB.class = ${BTB.getClass}, BTB=\n$BTB")
+        println(s"Lambda.class = ${Lambda.getClass}, Lambda=$Lambda")
+
+        ///////////////////////////// C
+        println("\n")
+        println("<<<< Starting MC\n")
+
+        MC= CloudCP.UpdateMatrix(X3_RDD,MA,MB,Dim_3,SizeC,rank,sc)
+        Lambda = CloudCP.UpdateLambda(MC,i)
+        MC = CloudCP.NormalizeMatrix(MC,Lambda)
+        CTC= CloudCP.Compute_MTM_RowMatrix(MC)
+       
+        println("MC Done >>>>\n")
+        println("MC after NormalizeMatrix")
+        MC.rows.collect.foreach(println)  
+        println(s"CTC.class = ${CTC.getClass}, CTC=\n$CTC")
+        println(s"Lambda.class = ${Lambda.getClass}, Lambda=$Lambda")
+
+        // NC: updated 5/9/20 to work with 3-way tensor
+        prev_fit = fit
+        fit(0) = CloudCP.ComputeFit(X1_RDD,Lambda,MA,MB,MC,ATA,BTB,CTC)
+        fit(1) = CloudCP.ComputeFit(X2_RDD,Lambda,MA,MB,MC,ATA,BTB,CTC)
+        fit(2) = CloudCP.ComputeFit(X3_RDD,Lambda,MA,MB,MC,ATA,BTB,CTC)
+        val_fit(0) = CloudCP.FitAbs(fit(0) - prev_fit(0))
+        val_fit(1) = CloudCP.FitAbs(fit(1) - prev_fit(1))
+        val_fit(2) = CloudCP.FitAbs(fit(2) - prev_fit(2))
+
+        println("\n")
+        println("<<<< Fit statistics")
+        println(s"fit.class = ${fit.getClass}, fit=$Lambda")
+        println(s"prev_fit.class = ${prev_fit.getClass}, prev_fit=$Lambda")
+        println(s"val_fit.class = ${val_fit.getClass}, val_fit=$Lambda")
+
+        N = N +1
+        // NC: updated 5/9/20 to use mean tolerance
+        if ((val_fit.sum / val_fit.length) < tolerance)
+          loop.break
+      }
+    }
+
+    //---------------
+    val time_e:Double=System.nanoTime()
+
+    //---------------
+
+    println(s"\nMA, MA.claLambdass = ${MA.getClass}")
+    MA.rows.collect().foreach(println)
+    println(s"\nMB, MB.class = ${MB.getClass}")
+    MB.rows.collect().foreach(println)
+    println(s"\nMC, MC.class = ${MC.getClass}")
+    MC.rows.collect().foreach(println)
+    
+    
+    // CloudCP.OutputResult(MA,output+"MatrixA")
+    // CloudCP.OutputResult(MB,output+"MatrixB")
+    // CloudCP.OutputResult(MC,output+"MatrixC")
+
+    println(s"val_fit = $val_fit")
+    println(s"N = $N")
+    println(s"Lambda = $Lambda")
+
+    println("Running time is:")
+    println((time_e-time_s)/1000000000+"s\n")
+
+    // return (MA,MB,MC)
+  }
    /**
     * Function to ingest a DataFrame with layer column name identified
     * and return a GraphFrame object. The idea is that multiple layers
     * can be generated using the same process because each layer utilizes
     * similar data (i.e., name, uuid, location, etc.). 
     *
-    *  @param ogdf 
-    *  @param cgdf
-    *  @param egdf
-    *  @param agdf
-    *  @param ngdf
-    *  @param partitions
-    *  @param csv
-    *  @param persist
-    *  @param verbose
-    *  @param df the source DataFrame
+    *  @param gdfs the source GraphFrames as a Sequence with String Name
     *  @param layerCol string column name representing the layer data
     *  @param partitions integer defines the number of partitions to use 
     *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
@@ -410,11 +702,6 @@ object ComplexNetwork {
   def buildMulti(
       // df_list: List[DataFrame], 
       gdfs: Seq[(String,GraphFrame)],
-      // ogdf: GraphFrame, 
-      // cgdf: GraphFrame, 
-      // egdf: GraphFrame, 
-      // agdf: GraphFrame, 
-      // ngdf: GraphFrame, 
       partitions: Int = 0,
       csv: Boolean = false,
       persist: Boolean = true,
@@ -429,6 +716,9 @@ object ComplexNetwork {
     val spark = this.sparkSession
     val sc = spark.sparkContext
     import spark.implicits._
+
+    // use for task timing
+    var timer_start: Instant = Instant.now() 
 
     // Tensor parameters (some are placeholders)
     var N_dim:Long = 0           // A,B dim = N_dim (node communities)
@@ -556,8 +846,18 @@ object ComplexNetwork {
      * B = edges out of node j, N x R (number of nodes)
      * C = personality rank, L x R (number of FFM layers)
      */
+    
+    
     // tensor parameters
     val R = 2 // rank/# of components
+
+    // trying this I found on github
+    // val facts = tensor3CPD(mode1Mat.toIndexedRowMatrix,
+    //                         mode2Mat.toIndexedRowMatrix,
+    //                         mode3Mat.toIndexedRowMatrix,
+    //                         rank=R,
+    //                         iterations=5)
+    // sys.exit()
 
     // initialize factors
     // def elemInit = scala.util.Random.nextDouble() // randomly choose between 0.0 and 1.0
@@ -591,56 +891,115 @@ object ComplexNetwork {
     println(s"factC as IndexedRowMatrix")
     // factC.toIndexedRowMatrix.rows.collect.foreach(println)
     factC.rows.collect.foreach(println)
+    println("\n")
     
     // Khatri-Rao product (CkB=NLxR,CkA=NLxR,BkA=NNxR)
-    // var CkB = 
+
+    ///////////////////////// for debugging ///////////////////////////////////
     // C^T C, B^T B are the Garmian matricies! 
-    // var AtA = factA.toIndexedRowMatrix.computeGramianMatrix()
-    // var BtB = factB.toIndexedRowMatrix.computeGramianMatrix()
-    // var CtC = factC.toIndexedRowMatrix.computeGramianMatrix()
-    var AtA = factA.computeGramianMatrix()
-    var BtB = factB.computeGramianMatrix()
-    var CtC = factC.computeGramianMatrix()
-
-    println(s"CtC = \n$CtC")
-    println(s"BtB = \n$BtB")
-
-    // intermediate step - convert to DenseMatrix
-    val M1M:DenseMatrix[Double] = new DenseMatrix[Double](CtC.numRows,CtC.numCols,CtC.toArray)
-    val M2M:DenseMatrix[Double] = new DenseMatrix[Double](BtB.numRows,BtB.numCols,BtB.toArray)
-    println(s"M1M = \n$M1M")
-    println(s"M2M = \n$M2M")
-
+    timer_start = Instant.now()
+    var AtA_brz = factA.computeGramianMatrix()
+    var BtB_brz = factB.computeGramianMatrix()
+    var CtC_brz = factC.computeGramianMatrix()
+    // intermediate step - convert to Breeze DenseMatrix(BDM)
+    val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
+    val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
     val tmp_breeze = M1M:*M2M
-
-    println("\nbreeze multiplication")
+    logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
     println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
     println(tmp_breeze)
+    println("\n")
+    timer_start = Instant.now()
+    val tmp_pinv = pinv(tmp_breeze)
+    logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
+    println(tmp_pinv)
+
+    ///////////////////////////////////////////////////////////////////////////
     
-    // Spark test
+    /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
+      * 
+      */
+    timer_start = Instant.now() 
     val factBlkC = factC.toBlockMatrix
     val factBlkB = factB.toBlockMatrix
+    // val factBlkA = factA.toBlockMatrix
 
-    val CtC_spark = (factBlkC.transpose).multiply(factBlkC)
-    val BtB_spark = (factBlkB.transpose).multiply(factBlkB)
-   
-    // val tmp_spark = BtB_spark.multiply(CtC_spark)
-    // println("\nspark multiplication")
-    // println(s"tmp_spark: numRows=${tmp_spark.numRows}, numCols=${tmp_spark.numCols}")
-    // tmp_spark.toIndexedRowMatrix.rows.collect.foreach(println)
+    val CtC = (factBlkC.transpose).multiply(factBlkC).toIndexedRowMatrix
+    val BtB = (factBlkB.transpose).multiply(factBlkB).toIndexedRowMatrix
+    // val AtA = (factBlkA.transpose).multiply(factBlkA).toIndexedRowMatrix
+
+    val ChB = hardamardProd(CtC,BtB)
+    logger.info(s"Hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    println(s"ChB: rows=${ChB.numRows}, cols=${ChB.numCols}")
+    ChB.entries.collect.foreach(println)
+    println("\n")
+
+    /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
+      * 
+      */ 
+    timer_start = Instant.now() 
+    // val ChB_local = ChB.toBlockMatrix.toLocalMatrix
+    // val ChB_dense = new BDM[Double](ChB_local.numRows,ChB_local.numCols,ChB_local.toArray)
+    // val ChB_i = pinv(ChB_dense)
+    // print("\n")
+    // print(ChB_i)
+    // print("\n")
+    // TODO: this seems expensive!
+    val ChBMat_i = mpPseudoInv(ChB.toIndexedRowMatrix) // returns a Matrix!
+    // mpPseudoInv(ChB.toIndexedRowMatrix)
+    logger.info(s"Moore-Pensrose ChB pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // ChB_i.entries.collect.foreach(println)
+    // ChB_i.rows.collect.foreach(println)
+    println(s"ChBMat_i Pseudo Inverse\n$ChBMat_i")
+    println("\n")
+
+    /** Khatri-Rao Product
+      * 
+      */
+    // import org.apache.spark.mllib.feature.ElementwiseProduct
+    // // Create the sparse vector of the features we need to keep.
+    // val transformingVector = Vectors.sparse(numFeatures, indices, weights)
+    // // Init our vector transformer
+    // val transformer = new ElementwiseProduct(transformingVector)
+
+    // val tmpC = factC.rows
+    // val tmpB = factB.rows
+    
+    // val tmpLKR = factC.rows.map{case IndexedRow(i,vec) => (i,(0,vec.toArray))} // (row,(L,vector))
+    val tmpLKR = factC.rows.map{case IndexedRow(i,vec) => (i,vec.toArray)} // (row,(L,vector))
+    // val tmpRKR = factB.rows.map{case IndexedRow(i,vec) => (i,(1,vec.toArray))} // (row,(R,vector))
+    val tmpRKR = factB.rows.map{case IndexedRow(i,vec) => (i,vec.toArray)} // (row,(R,vector))
+    // val tmpKR = (tmpLKR ++ tmpRKR)//.map{ case IndexedRow(i,vec) => }
+    val tmpKR = tmpLKR.cartesian(tmpRKR) // (left(0:i),right(0:j))
+      .map{case ((li,lv),(ri,rv)) => lv.zip(rv)}
+      // .flatMap{case (i,(pos,vec)) => vec.toArray.zipWithIndex.map{case (v,j) => (j,(i,(pos,v)))}} // (col, (row (L/R,Val)))
+      // .groupByKey()
+      // .map{case IndexedRow(i,vec) =>(i,vec)}
+      // .combineByKey() // matching columnwise Kroneker product
+      // .reduceByKey{case (x,y) => if(x._1 == y._1) (x._1, x._2 * y._2) } // matching columnwise Kroneker product
+      // .reduceByKey{case (x,y) => Vectors.dense(x.toArray.zip(y.toArray).map{ case (a, b) => a * b }) } // matching columnwise Kroneker product
+      // .map{case(k,v) => MatrixEntry(k._1,k._2,v)}
+      // .reduceByKey(_*_) // TODO: should I sortBy(key)?
+      // .map{case(k,v) => (k,v)}
+
+    println(s"tmpKR")
+    tmpKR.collect.foreach(println)
+    println("\n")
+
+    // println(s"Cartesian")
+    // val tmpKR = tmpLKR.cartesian(tmpRKR)
     // println("\n")
 
-    val BtBRDD = BtB_spark.toIndexedRowMatrix.rows
-    val CtCRDD = CtC_spark.toIndexedRowMatrix.rows
+    // IndexedRowMatrix.multiply(Matrix) // so mpPseudoInv needs to be a Matrix?!
 
-    // println("\nCtC_spark as rdd")
-    // CtCRDD.collect.foreach(println)
-    // println("\nBtB_spark as rdd")
-    // BtBRDD.collect.foreach(println)
-    
-    val tmp = hardamardProd(CtC_spark.toIndexedRowMatrix,BtB_spark.toIndexedRowMatrix)
-    println("\nspark multiplication")
-    tmp.entries.collect.foreach(println)
+    sys.exit()
+    // update lambda & normalize factor matrix
+    // val Lambda = CloudCP.UpdateLambda(A,i)
+    // val new_A = CloudCP.NormalizeMatrix(A,Lambda) / returns indexed row matrix
+
+
+
 
     // // Hardamard product of two IndexedRowMatrices
     // //IndexedRowMatrix.rows
@@ -1147,7 +1506,7 @@ object ComplexNetwork {
     // (6) analysis
     // Run PageRank until convergence to tolerance "tol".
     // val prOpn = grOpn.pageRank.resetProbability(0.15).tol(0.01).run()
-    // Run PageRank for a fixed number of iterations.
+    // Run PageRank for a fixed number of iterationsions.
     
     // OPN
     // logger.info(s"Starting OPN pageRank")

@@ -115,11 +115,11 @@
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.scalanlp/breeze -->
-    <dependency>
+    <!-- <dependency>
         <groupId>org.scalanlp</groupId>
         <artifactId>breeze_${scala.compat.version}</artifactId>
         <version>${scalanlp.version}</version>
-    </dependency>
+    </dependency> -->
 
     
     <!-- https://mvnrepository.com/artifact/org.scala-lang/scala-library -->
