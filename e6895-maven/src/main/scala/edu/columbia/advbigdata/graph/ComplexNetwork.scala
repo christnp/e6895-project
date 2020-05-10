@@ -18,6 +18,7 @@ import org.apache.spark.sql.{DataFrame,Row,Column}
 // import org.apache.spark.sql.types.{StructType, StructField, StringType, IntegerType};
 
 // spark-mllib_2.11 artifact (for RDD matrix operations)
+import org.apache.spark.mllib.feature.Normalizer
 import org.apache.spark.mllib.linalg.{Vector,Vectors,Matrix,Matrices}
 import org.apache.spark.mllib.linalg.distributed._ //{RowMatrix,IndexedRow,IndexedRowMatrix,BlockMatrix,MatrixEntry}
 
@@ -39,7 +40,7 @@ import org.neo4j.spark._
 import org.neo4j.spark.dataframe._
 
 // org.scala-lang artifacts
-import scala.util.Random 
+import scala.util.{Try,Random}
 import scala.util.control.Breaks
 import scala.collection._
 
@@ -303,36 +304,178 @@ object ComplexNetwork {
     * 
     *
     * @param rowMat
+    * @param norm
     */
-  //  def normRowMat(rowMat:IndexedRowMatrix, L:Vector) : IndexedRowMatrix = {
+    def updateFactor(
+      X1: IndexedRowMatrix,
+      A3: IndexedRowMatrix, 
+      A2: IndexedRowMatrix, 
+      rank: Int
+    ) : (IndexedRowMatrix, Vector) = {
 
-  //   val map_M = rowMat.rows.map(x =>
-  //     (x.index, x.vector.toArray)).mapValues(x => x:/L)
 
-  //   val NL_M:IndexedRowMatrix = new IndexedRowMatrix(map_M
-  //     .map(x => IndexedRow(x._1, Vectors.dense(x._2.toArray))))
+      var func_start = Instant.now() 
 
-  //   NL_M
-  // }
+      // val A1_dim = X1.numRows //N x N*L
+   
+      // initialize the factors and lambdas
+      // var A1 = rowFactorInit(A1_dim,rank) // initialization is superfluous
+      // var lambda1 =  Vectors.zeros(rank)
 
-  /** Frobenius Norm
-    * @param rowMat an indexed row matrix
+      val blkA3 = A3.toBlockMatrix
+      val blkA2 = A2.toBlockMatrix
+      // val blkA1 = A1.toBlockMatrix
+
+      var timer_start = Instant.now() 
+      /////
+      val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
+      val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
+      // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
+      val A3hA2 = hmProduct(A3tA3,A2tA2) // hardamard product
+      /////
+      val hmtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+
+      /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
+        *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
+        * 
+        */ 
+      timer_start = Instant.now() 
+      /////
+      // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
+      val A3hA2_pinv = mpInverse(A3hA2) // returns a Matrix!
+      /////
+      val mpinvtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+      
+
+      /** Khatri-Rao Product (CkB=NLxR,CkA=NLxR,BkA=NNxR)
+        * 
+        */
+      timer_start = Instant.now() 
+      /////
+      val A3kA2 = krProduct(A3,A2)
+      /////
+      val krtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+      
+
+      /** Multiply tensor, Khatri-Rao, and Hardamard 
+        * 
+        */
+      timer_start = Instant.now() 
+      /////
+      val Z_n = A3kA2.multiply(A3hA2_pinv)
+      var A1 = X1.toBlockMatrix.multiply(Z_n.toBlockMatrix).toIndexedRowMatrix
+      /////
+      val multalltime = Duration.between(timer_start,Instant.now()).toMillis()
+
+      
+      /** Calculate Lambda and normalize matrix
+        *  
+        */
+      timer_start = Instant.now() 
+      var lambda1_2 = CloudCP.UpdateLambda(A1,0) // 0=L2norm Euclidean norm (Frobenius Norm); 1=max
+      var A1_norm2 = CloudCP.NormalizeMatrix(A1,lambda1_2)
+      logger.info(s"  lambda1_2: ${lambda1_2}")
+      val ccpnormtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+      timer_start = Instant.now() 
+      var lambda1 = frNorm(A1)
+      A1 = normalizeMatrix(A1,lambda1)
+      val mynormtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+
+      val totaltime = Duration.between(func_start,Instant.now()).toMillis()
+
+      // Timing/User Output
+      logger.info(s"updateFactor() timing profile:")
+      logger.info(s"Hardamard product.......${hmtime} ms")
+      logger.info(s"Moore-Penrose inverse...${mpinvtime} ms")
+      logger.info(s"Khatri-Rao product......${krtime} ms")
+      logger.info(s"Multiplying all.........${multalltime} ms")
+      logger.info(s"CloudCP norm............${ccpnormtime} ms")
+      logger.info(s"My Spark norm...........${mynormtime} ms")
+      logger.info(s"Total time..............${totaltime} ms")
+
+      return (A1,lambda1)
+    }
+
+  /** Normalizes the matrix using the provided row matrix and vector of norms
+    * Insperied by cqwcy201101 (https://github.com/kobeliu85/Spark-Tensor)
+    *  - the columns of rowMat must match the size of the norm vector
     * 
+    * @param rowMat
+    * @param norm 
+    */
+  def normalizeMatrix(rowMat : IndexedRowMatrix, norm : Vector) : IndexedRowMatrix = {
+    // make sure the dimensions are correct
+    require((rowMat.numCols == norm.size),
+      s"matrix column dimension (${rowMat.numCols}) does not equal length of norm vector (${norm.size}).")
+    
+    
+    var timer_start = Instant.now() 
+    /////
+    val normL2 = new Normalizer() // default L2 norm, i.e. robenius Norm (use p=# for others)
+    // Each sample in data1 will be normalized using $L^2$ norm.
+    val rowMat_T = rowMat.toCoordinateMatrix.transpose.toIndexedRowMatrix
+    val normalizedRDD2 = rowMat_T.rows
+      .map(x => IndexedRow(x.index, normL2.transform(x.vector.toDense)))
+
+    var tmpNormilizedMat = new IndexedRowMatrix(normalizedRDD2)
+    tmpNormilizedMat = tmpNormilizedMat.toCoordinateMatrix.transpose.toIndexedRowMatrix
+    /////
+    val dentime = Duration.between(timer_start,Instant.now()).toMillis()
+
+    timer_start = Instant.now() 
+    /////
+    val bdv_norm : BDV[Double] = BDV[Double](norm.toArray)
+    val normalizedRDD = rowMat.rows
+      .map(x => (x.index, BDV[Double](x.vector.toArray)))
+      .mapValues(x => (x:/bdv_norm).map(y => if (y.isNaN()) 0.0 else y))
+      .map{case (i,bdv) => IndexedRow(i, Vectors.dense(bdv.toArray))}
+    /////
+    val bdvtime = Duration.between(timer_start,Instant.now()).toMillis()
+
+    // debug output
+    logger.info(s"normalizeMatrix() timing profile:")
+    logger.info(s"BDV normalized..........${bdvtime} ms")
+    logger.info(s"Dense vec normalized....${dentime} ms")
+    // logger.info(s"BDV normalized matrix:")
+    // normalizedRDD.take(5).foreach(println)
+    // logger.info(s"Dense vector normalized matrix:")
+    // tmpNormilizedMat.rows.take(5).foreach(println)
+
+    return new IndexedRowMatrix(normalizedRDD)
+
+    // val map_M = matrix.rows
+    //   .map(x => (x.index, BDV[Double](x.vector.toArray)))
+    //   .mapValues(x => (x:/L).map(y => if (y.isNaN()) 0.0 else y))
+
+    // val NL_M:IndexedRowMatrix = new IndexedRowMatrix(map_M
+    //   .map(x => IndexedRow(x._1, Vectors.dense(x._2.toArray))))
+
+  }
+  /** Frobenius Norm
+    * Insperied by cqwcy201101 (https://github.com/kobeliu85/Spark-Tensor)
     * Ref: https://stackoverflow.com/questions/29869567/spark-distributed-matrix-multiply-and-pseudo-inverse-calculating
+    *
+    *  @param rowMat an indexed row matrix
     */
   def frNorm(rowMat : IndexedRowMatrix) : Vector = {
     
     return Vectors.dense(rowMat.toRowMatrix()
       .computeColumnSummaryStatistics().normL2.toArray)
-
   }
 
   /** Moore-Penrose Pseudo-Inverse
+    * Insperied by cqwcy201101 (https://github.com/kobeliu85/Spark-Tensor)
+    * 
     *  - this implementiaton of the Hardamard (element-wise) matrix
     *    multiplication uses RDD-like structures
     * @param rowMat indexedRowMatrix matrix
     */
-  def mpPseudoInv(rowMat: IndexedRowMatrix) : Matrix = {
+  def mpInverse(rowMat: IndexedRowMatrix) : Matrix = {
 
     val spark = this.sparkSession
     val sc = spark.sparkContext
@@ -345,18 +488,16 @@ object ComplexNetwork {
     val denseMat = new BDM[Double](rows,cols,localMat.toArray)
     // val inverse = CloudCP.BDMtoMatrix(pinv(denseMat))
     
-    
     return Matrices.dense(rows, cols, pinv(denseMat).data)    
   }
 
   /** Khatri-Rao Product
-    * 
     *
-    * @param left
-    * @param right
+    * @param lkr represents the left IndexedRowMatrix in the Khatri-Rao product
+    * @param rkr represents the right IndexedRowMatrix in the Khatri-Rao product
     */
   def krProduct(lkr:IndexedRowMatrix,rkr:IndexedRowMatrix) : IndexedRowMatrix = {
-
+    // TODO: add dimension requirement
     val tmpLKR = lkr.rows.map{case IndexedRow(i,vec) => (i,vec)} // (row,(L,vector))
     val tmpRKR = rkr.rows.map{case IndexedRow(i,vec) => (i,vec)} // (row,(R,vector))
     val tmpKR = tmpLKR.cartesian(tmpRKR) // (left(0:i),right(0:j))
@@ -371,23 +512,21 @@ object ComplexNetwork {
   /** Hardamard product of two IndexedRowMatrices
     *  - this implementiaton of the Hardamard (element-wise) matrix
     *    multiplication uses RDD-like structures
-    * @param left left IndexedRowMatrix
-    * @param right right IndexedRowMatrix
+    * @param lhm left IndexedRowMatrix
+    * @param rhm right IndexedRowMatrix
     */
-  def hmProduct(
-    left: IndexedRowMatrix, 
-    right: IndexedRowMatrix
-  ) : CoordinateMatrix = {
-    
+  def hmProduct(lhm: IndexedRowMatrix,rhm: IndexedRowMatrix) : IndexedRowMatrix = { // CoordinateMatrix = {
+    // TODO: add dimension requirement
     //IndexedRowMatrix.rows
-    val tmp = (left.rows ++ right.rows)
+    val tmpRDD = (lhm.rows ++ rhm.rows)
       .flatMap{case IndexedRow(i,vec) => 
-          vec.toArray.zipWithIndex.map{case (v,j) => ((i,j),v)}
-        }
+          vec.toArray.zipWithIndex.map{case (v,j) => ((i,j),v)}} // keep track of row/column for element-wise product
       .reduceByKey(_*_) // TODO: should I sortBy(key)?
       .map{case(k,v) => MatrixEntry(k._1,k._2,v)}
 
-    return new CoordinateMatrix(tmp)
+    val tmpMat = new CoordinateMatrix(tmpRDD)
+    // return new CoordinateMatrix(tmp)
+    return tmpMat.toIndexedRowMatrix
   }
 
   /**
@@ -464,156 +603,212 @@ object ComplexNetwork {
     val A2_dim = X2.numRows //N x N*L
     val A3_dim = X3.numRows //L x N*N
    
-    // initialize the factors
-    val A2 = rowFactorInit(A2_dim,rank)
-    val A3 = rowFactorInit(A3_dim,rank)
-
+    // initialize the factors and lambdas
+    var A1 = rowFactorInit(A1_dim,rank) // initialization is superfluous
+    var A2 = rowFactorInit(A2_dim,rank)
+    var A3 = rowFactorInit(A3_dim,rank)
+    var lambda1 = Vectors.zeros(rank)
+    var lambda2 = Vectors.zeros(rank)
+    var lambda3 = Vectors.zeros(rank)
     // we want to make sure the dimensions are correct
     require((A2.numRows == A2_dim && A2.numCols == rank), "A2 dimensions incorrect")
     require((A3.numRows == A3_dim && A3.numCols == rank), "A3 dimensions incorrect")
 
     logger.info(s"Factor Matrix dimensions: ")
-    logger.info(s"  A1 (nodes):  ${A1_dim}x${rank}")
-    logger.info(s"  A2 (nodes):  ${A2_dim}x${rank}")
-    logger.info(s"  A3 (layers): ${A3_dim}x${rank}")
+    logger.info(s"A1 (nodes)...${A1_dim}x${rank}")
+    logger.info(s"A2 (nodes)...${A2_dim}x${rank}")
+    logger.info(s"A3 (layers)...${A3_dim}x${rank}")
 
-    ///////////////////////// for debugging ///////////////////////////////////
-    // C^T C, B^T B are the Garmian matricies! 
-    timer_start = Instant.now()
-    // var AtA_brz = A1.computeGramianMatrix()
-    var BtB_brz = A2.computeGramianMatrix()
-    var CtC_brz = A3.computeGramianMatrix()
-    // intermediate step - convert to Breeze DenseMatrix(BDM)
-    val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
-    val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
-    val tmp_breeze = M1M:*M2M
-    logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
-    println(tmp_breeze)
-    println("\n")
-    timer_start = Instant.now()
-    val tmp_pinv = pinv(tmp_breeze)
-    logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
-    println(tmp_pinv)
-    ///////////////////////////////////////////////////////////////////////////
-    
-    /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
-      * 
-      */
-    val blkA3 = A3.toBlockMatrix
-    val blkA2 = A2.toBlockMatrix
-    // val blkA1 = A1.toBlockMatrix
+  
 
-    timer_start = Instant.now() 
-    /////
-    val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
-    val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
-    // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
-    val A3hA2 = hmProduct(A3tA3,A2tA2) // hardamard product
-    /////
-    logger.info(s"Hardamard product A3hA2 with A3tA3/A2tA2 transposes took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    val loop = new Breaks
 
-    /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
-      *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
-      * 
-      */ 
-    timer_start = Instant.now() 
-    /////
-    val A3hA2_pinv = mpPseudoInv(A3hA2.toIndexedRowMatrix) // returns a Matrix!
-    /////
+    loop.breakable{
 
-    /** Khatri-Rao Product (CkB=NLxR,CkA=NLxR,BkA=NNxR)
-      * 
-      */
-    timer_start = Instant.now() 
-    /////
-    val A3kA2 = krProduct(A3,A2)
-    /////
-    logger.info(s"Khatri-Rao product A3kA2 took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      for (i <- 0 until  iter)
+      {
+        logger.info(s"Tensor CPD Stage $i @ +${Duration.between(tensor3CPD_start,Instant.now()).toMillis()} ms")
+        logger.info(s"Updated Parameters:")
+        logger.info(s"lambda1....${lambda1}")
+        logger.info(s"lambda2....${lambda2}")
+        logger.info(s"lambda3....${lambda3}")
+
+        ///////////////////////// for debugging ///////////////////////////////////
+        // C^T C, B^T B are the Garmian matricies! 
+        // timer_start = Instant.now()
+        // // var AtA_brz = A1.computeGramianMatrix()
+        // var BtB_brz = A2.computeGramianMatrix()
+        // var CtC_brz = A3.computeGramianMatrix()
+        // // intermediate step - convert to Breeze DenseMatrix(BDM)
+        // val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
+        // val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
+        // val tmp_breeze = M1M:*M2M
+        // logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+        // println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
+        // println(tmp_breeze)
+        // println("\n")
+        // timer_start = Instant.now()
+        // val tmp_pinv = pinv(tmp_breeze)
+        // logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+        // println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
+        // println(tmp_pinv)
+        ///////////////////////////////////////////////////////////////////////////
+        
+        /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
+          * 
+          */
+        var tmp = updateFactor(X1,A3,A2,rank)
+        A1 = tmp._1
+        lambda1 = tmp._2
+
+        tmp = updateFactor(X2,A3,A1,rank)
+        A2 = tmp._1
+        lambda2 = tmp._2
+
+        tmp = updateFactor(X3,A2,A1,rank)
+        A3 = tmp._1
+        lambda3 = tmp._2
+        // val blkA3 = A3.toBlockMatrix
+        // val blkA2 = A2.toBlockMatrix
+        // // val blkA1 = A1.toBlockMatrix
+
+        // timer_start = Instant.now() 
+        // /////
+        // val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
+        // val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
+        // // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
+        // val A3hA2 = hmProduct(A3tA3,A2tA2) // hardamard product
+        // /////
+        // logger.info(s"Hardamard product A3hA2 with A3tA3/A2tA2 transposes took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+
+        // /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
+        //   *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
+        //   * 
+        //   */ 
+        // timer_start = Instant.now() 
+        // /////
+        // // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
+        // val A3hA2_pinv = mpInverse(A3hA2) // returns a Matrix!
+        // /////
+
+        // /** Khatri-Rao Product (CkB=NLxR,CkA=NLxR,BkA=NNxR)
+        //   * 
+        //   */
+        // timer_start = Instant.now() 
+        // /////
+        // val A3kA2 = krProduct(A3,A2)
+        // /////
+        // logger.info(s"Khatri-Rao product A3kA2 took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
 
 
-    /** Multiply tensor, Khatri-Rao, and Hardamard 
-      * 
-      */
-    timer_start = Instant.now() 
-    /////
-    val Z_n = A3kA2.multiply(A3hA2_pinv)
-    var A1 = X1.toBlockMatrix.multiply(Z_n.toBlockMatrix).toIndexedRowMatrix
-    /////
-    logger.info(s"Multiplying tensor,krProduct, and hmProduct took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-     
-    val lambda = CloudCP.UpdateLambda(A1,0) // 0=L2norm Euclidean norm (Frobenius Norm); 1=max
-    // val lambda = frNorm(A1)
-    val A1_norm = CloudCP.NormalizeMatrix(A1,lambda)
+        // /** Multiply tensor, Khatri-Rao, and Hardamard 
+        //   * 
+        //   */
+        // timer_start = Instant.now() 
+        // /////
+        // val Z_n = A3kA2.multiply(A3hA2_pinv)
+        // var A1 = X1.toBlockMatrix.multiply(Z_n.toBlockMatrix).toIndexedRowMatrix
+        // /////
+        // logger.info(s"Multiplying tensor,krProduct, and hmProduct took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+        
+        // timer_start = Instant.now() 
+        // lambda1 = CloudCP.UpdateLambda(A1,0) // 0=L2norm Euclidean norm (Frobenius Norm); 1=max
+        // A1_norm = CloudCP.NormalizeMatrix(A1,lambda1)
+        // logger.info(s"CloudCP normalization took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
 
-    ////////////////// DEBUG OUTPUT
-    // X1
-    println(s"mode1")
-    X1.rows.collect.foreach(println)
-    println("\n")
-    // X2
-    println(s"mode2")
-    X2.rows.collect.foreach(println)
-    println("\n")
-    // X3
-    println(s"mode3")
-    X3.rows.collect.foreach(println)
-    println("\n")
-    // A1
-    // println(s"A1 as IndexedRowMatrix")
-    // A1.rows.collect.foreach(println)
-    // println("\n")
-    // A2
-    println(s"A2 as IndexedRowMatrix")
-    A2.rows.collect.foreach(println)
-    println("\n")
-    // A3
-    println(s"A3 as IndexedRowMatrix")
-    A3.rows.collect.foreach(println)
-    println("\n")
-    // A1tA1
-    // TBD?
-    // A2tA2
-    println(s"A2tA2 as IndexedRowMatrix")
-    A2tA2.rows.collect.foreach(println)
-    println("\n")
-    // A3tA3
-    println(s"A2tA2 as IndexedRowMatrix")
-    A2tA2.rows.collect.foreach(println)
-    println("\n")
-    // A3hA2
-    println(s"A3hA2: rows=${A3hA2.numRows}, cols=${A3hA2.numCols}")
-    A3hA2.entries.collect.foreach(println)
-    println("\n")
-    // A3hA2_pinv
-    println(s"A3hA2_pinv Pseudo Inverse")
-    println(s"$A3hA2_pinv")
-    println("\n")
-    // A3kA2
-    println(s"A3kA2")
-    A3kA2.rows.collect.foreach(println)
-    println("\n")
-    // Z_n    
-    println(s"Z_n")
-    Z_n.rows.collect.foreach(println)
-    println("\n")
-    // A1
-    println(s"A1")
-    A1.rows.collect.foreach(println)
-    println("\n")
-    // lambda
-    println(s"lambda")
-    println(lambda)
-    println("\n")
-    // A1_norm
-    println(s"A1_norm")
-    A1_norm.rows.collect.foreach(println)
-    println("\n")
-    ///////////////////////////////
+        // timer_start = Instant.now() 
+        // lambda1_2 = frNorm(A1)
+        // A1_norm2 = normalizeMatrix(A1,lambda1_2)
+        // logger.info(s"My normalization took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
 
-    // relative residual norm ||X-X^||/||X||
-    // sum of error delta per fact. i.e., sumErr = errX1 + errX2 + errX3
+        ////////////////// DEBUG OUTPUT
+        // X1
+        // println(s"mode1")
+        // X1.rows.take(5).foreach(println)
+        // println("\n")
+        // // X2
+        // println(s"mode2")
+        // X2.rows.take(5).foreach(println)
+        // println("\n")
+        // // X3
+        // println(s"mode3")
+        // X3.rows.take(5).foreach(println)
+        // println("\n")
+        // A1
+        // println(s"A1 as IndexedRowMatrix")
+        // A1.rows.take(5).foreach(println)
+        // println("\n")
+        // A2
+        // println(s"A2 as IndexedRowMatrix")
+        // A2.rows.take(5).foreach(println)
+        // println("\n")
+        // // A3
+        // println(s"A3 as IndexedRowMatrix")
+        // A3.rows.take(5).foreach(println)
+        // println("\n")
+        // // A1tA1
+        // // TBD?
+        // // A2tA2
+        // println(s"A2tA2 as IndexedRowMatrix")
+        // A2tA2.rows.take(5).foreach(println)
+        // println("\n")
+        // // A3tA3
+        // println(s"A2tA2 as IndexedRowMatrix")
+        // A2tA2.rows.take(5).foreach(println)
+        // println("\n")
+        // // A3hA2
+        // println(s"A3hA2: rows=${A3hA2.numRows}, cols=${A3hA2.numCols}")
+        // // A3hA2.entries.take(5).foreach(println)
+        // A3hA2.rows.take(5).foreach(println)
+        // println("\n")
+        // // A3hA2_pinv
+        // println(s"A3hA2_pinv Pseudo Inverse")
+        // println(s"$A3hA2_pinv")
+        // println("\n")
+        // // A3kA2
+        // println(s"A3kA2")
+        // A3kA2.rows.take(5).foreach(println)
+        // println("\n")
+        // // Z_n    
+        // println(s"Z_n")
+        // Z_n.rows.take(5).foreach(println)
+        // println("\n")
+        // // A1
+        // println(s"A1")
+        // A1.rows.take(5).foreach(println)
+        // println("\n")
+        // // lambda1
+        // println(s"lambda1")
+        // println(lambda1)
+        // println("\n")
+        // // A1_norm
+        // println(s"A1_norm")
+        // A1_norm.rows.take(5).foreach(println)
+        // println("\n")
+        // // lambda1_2
+        // println(s"lambda1_2")
+        // println(lambda1_2)
+        // println("\n")
+        // // A1_norm2
+        // println(s"A1_norm2")
+        // A1_norm2.rows.take(5).foreach(println)
+        // println("\n")
+        ///////////////////////////////
+
+        // relative residual norm ||X-X^||/||X||
+        // sum of error delta per fact. i.e., sumErr = errX1 + errX2 + errX3
+        // errX1 = ||X1-A1||/||X1||
+        // println(s"rows: X1->${X1.numRows}, A1->${A1.numRows}")
+        // println(s"cols: X1->${X1.numCols}, A1->${A1.numCols}")
+
+        // println(s"rows: X2->${X2.numRows}, A2->${A2.numRows}")
+        // println(s"cols: X2->${X2.numCols}, A2->${A2.numCols}")
+        
+        // println(s"rows: X3->${X3.numRows}, A3->${A3.numRows}")
+        // println(s"cols: X3->${X3.numCols}, A3->${A3.numCols}")
+      }
+    }
+
     // function finished  
     logger.info(s"tensor3CPD_start() finished in ${Duration.between(tensor3CPD_start,Instant.now()).toMillis()} ms")
    
@@ -1019,20 +1214,20 @@ object ComplexNetwork {
     val mode3Mat = new CoordinateMatrix(mode3Rdd) // assert: dim = L x N*N
 
     //////// DEBUG OUTPUT
-    println(s"mode1Mat: numRows=${mode1Mat.numRows}, numCols=${mode1Mat.numCols}\n")
-    println(s"mode1Mat as IndexedRowMatrix\n")
-    mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    println(s"\n")
+    // println(s"mode1Mat: numRows=${mode1Mat.numRows}, numCols=${mode1Mat.numCols}\n")
+    // println(s"mode1Mat as IndexedRowMatrix\n")
+    // mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    // println(s"\n")
 
-    println(s"mode2Mat: numRows=${mode2Mat.numRows}, numCols=${mode2Mat.numCols}\n")
-    println(s"mode2Mat as IndexedRowMatrix\n")
-    mode2Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    println(s"\n")
+    // println(s"mode2Mat: numRows=${mode2Mat.numRows}, numCols=${mode2Mat.numCols}\n")
+    // println(s"mode2Mat as IndexedRowMatrix\n")
+    // mode2Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    // println(s"\n")
 
-    println(s"mode3Mat: numRows=${mode3Mat.numRows}, numCols=${mode3Mat.numCols}\n")
-    println(s"mode3Mat as IndexedRowMatrix\n")
-    mode3Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    println(s"\n")
+    // println(s"mode3Mat: numRows=${mode3Mat.numRows}, numCols=${mode3Mat.numCols}\n")
+    // println(s"mode3Mat as IndexedRowMatrix\n")
+    // mode3Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    // println(s"\n")
 
    /**
      * Tensor factorization via CP decomposition of rank R
@@ -1053,7 +1248,7 @@ object ComplexNetwork {
                             tol=0.1)
 
     println(s"facts")
-    facts.rows.collect.foreach(println)
+    facts.rows.take(5).foreach(println)
     println("\n")
 
     // // val A2 = coordFactorInit(N_dim,R)
@@ -1121,7 +1316,7 @@ object ComplexNetwork {
     //   */ 
     // timer_start = Instant.now() 
     // /////
-    // val A3hA2_pinv = mpPseudoInv(A3hA2.toIndexedRowMatrix) // returns a Matrix!
+    // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
     // /////
     // logger.info(s"Moore-Pensrose A3hA2 pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
     // println(s"A3hA2_pinv Pseudo Inverse\n$A3hA2_pinv")
