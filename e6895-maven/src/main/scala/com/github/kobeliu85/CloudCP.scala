@@ -128,7 +128,9 @@ object CloudCP {
     val index_2:Int = (Dim+2)%3
 
     val InitialM1:IndexedRowMatrix = GenM1(SizeOfMatrix,Rank,sc)
-    println("CalculateM1\n")
+    println("\nCalculateM1 (top)")
+    println("-----------------")
+    
     println("InitialM1")
     InitialM1.rows.collect.foreach(println)
 
@@ -143,7 +145,7 @@ object CloudCP {
       .reduceByKey((x,y) => x+y)
     //.sortByKey()
 
-    println("InitialM1")
+    println("ReduceResult")
     ReduceResult.collect.foreach(println)
 
     //ReduceResult.collect().foreach(println)
@@ -158,13 +160,15 @@ object CloudCP {
           BDVtoVector(x._2.head)}
       }//.sortByKey()
 
-      println("tempM1")
-      tempM1.collect.foreach(println)
+      // println("tempM1")
+      // tempM1.collect.foreach(println)
 
     val ResultM1:IndexedRowMatrix = new IndexedRowMatrix(
       tempM1.map(
         x =>IndexedRow(x._1,Vectors.dense(x._2.toArray))))
-    
+      
+      println("\nCalculateM1 (end)")
+      println("-----------------")
       println("ResultM1")
       ResultM1.rows.collect.foreach(println)
 
@@ -185,6 +189,22 @@ object CloudCP {
     val normXest = abs(sum(tmp))
     val norm = TensorData.map(x => x.apply(3)*x.apply(3)).reduce(_+_)
 
+    println("\nComputeFit (top)")
+    println("-----------------")
+
+    println(">> L & (L*L.t)")
+    println(L)
+    println(L*L.t)
+    
+    println("tmp")
+    println(tmp)
+    println("normXest")
+    println(normXest)
+    println("norm")
+    println(norm)
+    println("TensorData")
+    TensorData.collect.foreach(println)
+
     var product = 0.0
     val Result = TensorData.map(
       x => (x.apply(0).toLong, x))
@@ -199,10 +219,18 @@ object CloudCP {
         BDV[Double](x._2.vector.toArray)))
       .values.map(x => K_Product(x._1.apply(3),x._4,K_Product(1.0,x._2,x._3)))
       .reduce(_+_)
+    
+    println("Result")
+    println(Result)
+    println("Result.t")
+    println(Result.t)
 
     product = product + Result.t * L
     val residue = sqrt(normXest + norm - 2*product)
     val Fit = 1.0 - residue/sqrt(norm)
+    
+    println("residue")
+    println(residue)
 
     Fit
   }
@@ -241,24 +269,27 @@ object CloudCP {
                    Rank:Int,
                    sc:SparkContext):IndexedRowMatrix = {
     
-    println("UpdateMatrix\n")
+    println("\nUpdateMatrix (top)")
+    println("-----------------")
     println("TensorData")
     TensorData.collect.foreach(println)
-    println("m1")
-    m1.rows.collect.foreach(println)
-    println("m2")
-    m2.rows.collect.foreach(println)
-    println("Dim")
-    println(Dim)
-    println("SizeOfMatrix")
-    println(SizeOfMatrix)
-    println("Rank")
-    println(Rank)
+
+    // println("m1")
+    // m1.rows.collect.foreach(println)
+    // println("m2")
+    // m2.rows.collect.foreach(println)
+    // println("Dim")
+    // println(Dim)
+    // println("SizeOfMatrix")
+    // println(SizeOfMatrix)
+    // println("Rank")
+    // println(Rank)
 
     val updateM = CalculateM1(TensorData,m1,m2,Dim,SizeOfMatrix,Rank,sc)
       .multiply(CalculateM2(m1,m2))
     
-    println("UpdateMatrix (return)\n")
+    println("\nUpdateMatrix (end)")
+    println("-----------------")
     println("updateM")
     updateM.rows.collect.foreach(println)
 

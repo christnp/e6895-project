@@ -3,7 +3,6 @@
   * https://github.com/kobeliu85/Spark-Tensor
   */
 // import org.apache.spark.mllib.linalg.distributed.CloudCP._
-package com.github.kobeliu85
 
 
 import breeze.linalg.{DenseVector => BDV}
@@ -11,15 +10,26 @@ import breeze.numerics.abs
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.{IndexedRowMatrix, IndexedRow}
 import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SparkSession
 
 import scala.util.control.Breaks
 
+// project specific packages
+import com.github.kobeliu85.CloudCP
 
 object TensorCP {
 
   def main(args: Array[String]): Unit = {
-    val inputFile = "/users/cqwcy201101/Desktop/test.md"
-    val output = "/users/cqwcy201101/Desktop/result/"
+
+    if (args.length < 2) 
+    {
+      throw new IllegalArgumentException(
+        "Exactly 2 input dataset paths are required: <inputFile> <outputPath>")
+    } 
+    // val inputFile = "/users/cqwcy201101/Desktop/test.md"
+    val inputFile = args(0)
+    // val outputPath = "/users/cqwcy201101/Desktop/result/"
+    val outputPath = args(1)
 
     /*--------------------------------
     val inputm1 =  "/Users/cqwcy201101/Desktop/MA.md"
@@ -30,8 +40,22 @@ object TensorCP {
 
 
 
-    val conf = new SparkConf().setAppName("TensorCP").setMaster("local").set("spark.ui.port","4040")
-    val sc = new SparkContext(conf)
+    /** create the SparkSession
+     */
+    val spark = SparkSession.builder()
+      // .config("spark.jars.packages", "com.google.cloud.spark:spark-bigquery-with-dependencies_2.11:0.13.1-beta") // Spark-BQ connector Doesn't work!? Using --jars in stead
+      // .config("spark.jars.packages","gs://spark-lib/bigquery/spark-bigquery-latest.jar")
+      .config("spark.sql.debug.maxToStringFields", 200)
+      // .master("local[*]") //"Spark://master:7077"
+      .appName("TensorCP")
+      .getOrCreate()
+      
+    // the SparkContext for later use
+    val sc = spark.sparkContext
+    // import implicits or this session
+    import spark.implicits._
+    /**/
+
     val inputData = sc.textFile(inputFile)
 
     val TensorData = CloudCP.readFile(inputData).cache()
@@ -47,6 +71,8 @@ object TensorCP {
     val SizeVector = CloudCP.RDD_VtoRowMatrix(TensorData)
       .computeColumnSummaryStatistics().max
 
+    println("SizeVector")
+    println(SizeVector)
 
     val SizeA:Long = SizeVector.apply(0).toLong+1
     val SizeB:Long = SizeVector.apply(1).toLong+1
@@ -55,6 +81,13 @@ object TensorCP {
     val Dim_1:Int = 0
     val Dim_2:Int = 1
     val Dim_3:Int = 2
+
+    println("SizeA")
+    println(SizeA)
+    println("SizeB")
+    println(SizeB)
+    println("SizeC")
+    println(SizeC)
 
     val iterat =100
     val tolerance = 0.0001
@@ -150,6 +183,8 @@ object TensorCP {
         fit = CloudCP.ComputeFit(TensorData,Lambda,MA,MB,MC,ATA,BTB,CTC)
         val_fit = abs(fit - prev_fit)
 
+        println(s"Stage $N: val_fit=$val_fit (tol=$tolerance)")
+
         N = N +1
 
         if (val_fit < tolerance)
@@ -173,9 +208,9 @@ object TensorCP {
 
 
 
-    CloudCP.OutputResult(MA,output+"MatrixA")
-    CloudCP.OutputResult(MB,output+"MatrixB")
-    CloudCP.OutputResult(MC,output+"MatrixC")
+    CloudCP.OutputResult(MA,outputPath+"MatrixA")
+    CloudCP.OutputResult(MB,outputPath+"MatrixB")
+    CloudCP.OutputResult(MC,outputPath+"MatrixC")
 
     
     println(val_fit)
