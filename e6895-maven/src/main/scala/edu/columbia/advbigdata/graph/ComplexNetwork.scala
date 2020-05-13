@@ -108,6 +108,14 @@ object ComplexNetwork {
   // Output format
   val SAVE_CSV = true // set true to store graphframe as CSV
 
+  // Global variables 
+  var _adjDFSeq = Seq[(String,DataFrame)]() // list of labeled adjacency matrices
+  var _comsDF = spark.emptyDataFrame
+  var _ffmsDF = spark.emptyDataFrame
+  var _lmdaDF = spark.emptyDataFrame
+  var _dinDF = spark.emptyDataFrame
+
+
   /**
    * Function to ingest a DataFrame with layer column name identified
    * and return a GraphFrame object. The idea is that multiple layers
@@ -162,29 +170,29 @@ object ComplexNetwork {
     // )
     /** define the columns */
     // var colComm = Seq("uuid","name","date","age","sex","country","goals") // for now, include goals as attributes
-    var colComm = Seq("uuid","name","date","age","sex","country") // for now, remove goals
+    var colComm = Seq("id","name","date","age","sex","country") // for now, remove goals
     colComm ++= Seq(layerCol)
     // (1) establish the vertex DF from the master DF
     var vertDF = df.select(colComm.head, colComm.tail: _*)
     // repartition if partition is defined
     if(partitions>0) vertDF = vertDF.repartition(partitions)
     // force persist
-    vertDF.persist(StorageLevel.MEMORY_AND_DISK).count() // MEMORY_AND_DISK lessens burden on Memory, adds a little CPU overhead
+    // vertDF.persist(StorageLevel.MEMORY_AND_DISK).count() // MEMORY_AND_DISK lessens burden on Memory, adds a little CPU overhead
 
     // rename UUID as ID for GraphFrames, else create one if UUID D.N.E.
-    try
-    {
-        vertDF = vertDF.withColumnRenamed("uuid", "id") 
-    }
-    catch
-    {
-        case unknown:  Throwable => {
-            logger.warn(s"Failed rename col('id') as col('id') \n  at $unknown")
-            logger.info(s"Creating col('id') with increasing_id()")
-            vertDF = vertDF.withColumn("id", monotonically_increasing_id())
-                .select("id", vertDF.columns:_*)
-        }
-    }
+    // try
+    // {
+    //     vertDF = vertDF.withColumnRenamed("uuid", "id") 
+    // }
+    // catch
+    // {
+    //     case unknown:  Throwable => {
+    //         logger.warn(s"Failed rename col('uuid') as col('id') \n  at $unknown")
+    //         logger.info(s"Creating col('id') with increasing_id()")
+    //         vertDF = vertDF.withColumn("id", monotonically_increasing_id())
+    //             .select("id", vertDF.columns:_*)
+    //     }
+    // }
 
     // statistics on the data
     val layerMean = vertDF.select(mean(layerCol)).collect.head.getDouble(0)
@@ -267,7 +275,7 @@ object ComplexNetwork {
     if(partitions>0) edgeDF = edgeDF.repartition(partitions)
 
     // force persist
-    edgeDF.persist(StorageLevel.MEMORY_AND_DISK).count() // MEMORY_AND_DISK lessens burden on Memory, adds a little CPU overhead
+    // edgeDF.persist(StorageLevel.MEMORY_AND_DISK).count() // MEMORY_AND_DISK lessens burden on Memory, adds a little CPU overhead
 
     // remove the temps from memory
     // TODO: do we really want to do this?
@@ -687,15 +695,6 @@ object ComplexNetwork {
 
         // val _X = 
 
-        // println(s"rows: X1->${X1.numRows}, A1->${A1.numRows}")
-        // println(s"cols: X1->${X1.numCols}, A1->${A1.numCols}")
-
-        // println(s"rows: X2->${X2.numRows}, A2->${A2.numRows}")
-        // println(s"cols: X2->${X2.numCols}, A2->${A2.numCols}")
-        
-        // println(s"rows: X3->${X3.numRows}, A3->${A3.numRows}")
-        // println(s"cols: X3->${X3.numCols}, A3->${A3.numCols}")
-
         logger.info(s"Tensor CPD Stage $i Updated Parameters:")
         logger.info(s"lambda1....${lambda1}")
         logger.info(s"lambda2....${lambda2}")
@@ -709,278 +708,30 @@ object ComplexNetwork {
     return (A1,lambda1,A2,lambda2,A3,lambda3)
   }
 
-  def SambaTenCPALS(
-    tensorSeq: Seq[IndexedRowMatrix],
-    rank: Int = 2, 
-    tol: Double = 0.002/*1e-4*/, 
-    maxIter: Int = 25)(implicit sc: SparkContext) : CPDecompModel = {
-    
-    
+  /**
+    * 
+    *
+    * @param lambda Breeze dense vector with factorization lambdas
+    * @param rank rank of the CPALS algorithm
+    * @param sc implicit spark context
+    * @return lambda vector as Spark Dataframe
+    */
+  def lambdaToDF(
+    lambda: BDV[Double],
+    rank: Int
+  )(implicit sc: SparkContext) : DataFrame = {
 
-    require(tensorSeq.length > 0, "Tensor sequence must have at least one item")
-    val I = tensorSeq(0).numRows.toInt
-    val J = tensorSeq(0).numCols.toInt
-    val K = tensorSeq.length.toInt
-
-    val shape = Coordinate(I,J,K)
-
-    // // create the object for CPALS
-    var myEntries = spark.sparkContext.emptyRDD[TEntry]
-    tensorSeq.zipWithIndex.foreach{ case (layer,k) =>
-      logger.info(s"Building layer $k tensor entry RDD")
-      // layer.rows.collect.foreach(println)
-
-      val tmpRDD = layer.rows
-        .flatMap{ case IndexedRow(i,vec) => 
-          vec.toArray.zipWithIndex.map{ case(value,j) => (i,j,k,value)}}
-        .map{ case (i,j,k,value) => 
-          new TEntry(Coordinate(i.toInt,j.toInt,k.toInt), value) }
-      
-      myEntries = myEntries ++ tmpRDD
-    }
-    
-    // logger.error(s"myEntries")
-    // myEntries.collect.foreach(println)
-
-    val myTensor = new CoordinateTensor(myEntries, shape).persist
-    // // assert(Util.isClose(model.test(testTensor), math.sqrt(dec*dec)/testTensor.norm))
-    val t0 = System.nanoTime()
-    val genModel = (new CPALS(rank=rank,tol=tol,maxIter=maxIter)).run(myTensor)
-    // val genModel = (new CPALS(rank=rank,tol=tol)).run(myTensor)
-    val t1 = System.nanoTime
-    val etime = (t1-t0)/1e9
-    val error = genModel.test(myTensor)
-    logger.info(s"relative error: $error, time cost: $etime")
-
-    return genModel
-    // val factMats = genModel.getFactMats
-    // val lambdas = genModel.getLambda
-
-    // factMats.zipWithIndex.foreach{ case(f,n) => 
-    //   val factBDM = toBDM(f)
-
-    //   logger.info(s"Factor $n matrix:")
-    //   println("\n")
-    //   println(factBDM)
-    //   println("\n")
-    //   logger.info(s"Factor $n columns: ${factBDM.cols}")
-    //   logger.info(s"Factor $n rows: ${factBDM.rows}")
-    // }
-
-    // logger.info(s"Factor lambdas:")
-    // println(lambdas)
-
-
-    // val fullTensor = genModel.reconstruct.persist
-
-    
-
-    
-    
-    // val model = TestCPALS.rand(shape, rank)
-    // val label = model.reconstruct.persist
-    // logger.error("training")
-    // val t0 = System.nanoTime()
-    // val genModel = (new CPALS(rank=rank,tol=tol)).run(label)
-    // val t1 = System.nanoTime
-    // val etime = (t1-t0)/1e9
-    // val error = genModel.test(label)
-    // logger.error(s"relative error: $error, time cost: $etime")
-
-
-    // // val initTensor: CoordinateTensor
-    // val rank = 2
-    // val maxIter = 10
-    // val tol = 0.002
-    // val I: Int = 100
-    // val J: Int = 100
-    // val K: Int = 100
-
-
-    // // reconstruct the tensor
-    // val factMats = Array(
-    //   Array(BDV(2.0,2.0), BDV(3.0,3.0), BDV(4.0,4.0)),
-    //   Array(BDV(1.0,1.0), BDV(2.0,2.0)),
-    //   Array(BDV(5.0,5.0), BDV(4.0,4.0), BDV(3.0,3.0)))
-    // val lambda = BDV(5.0,5.0)
-    // val model = new CPDecompModel(factMats, lambda)
-    
-    // val reconsTensor = model.reconstruct.persist
-
-    // // assert(Util.isClose(model.test(testTensor), math.sqrt(dec*dec)/testTensor.norm))
-
-    // val model = als.run(myTensor.persist)
-
-    // // get factors reference using the same sampling indexes
-    // val refs = model.getSample(sampleIdxs).factMats.map(toBDM(_))
-
-  }
-  def testCloudCP (TensorData: RDD[Vector]) = {
-
-    // val RDD_V = s.map(s => Vectors.dense(s.split(' ').map(_.toDouble)))
-
-    val time_s:Double=System.nanoTime()
-
-    // the SparkContext for later use
-    val sc = spark.sparkContext
-    // import implicits or this session
     import spark.implicits._
-    /**/
 
-/*
-    //-----------------------------
-    val MAdata = sc.textFile(inputm1)
-      .map(s => Vectors.dense(s.split(' ').map(_.toDouble)))
+    val tmp = Seq(lambda.toArray.map((_.toDouble))).toDF()
+      .select((0 until rank)
+      .map(i => col("value")(i).alias(s"lambda_r${i}")): _*)
 
-    val MBdata = sc.textFile(inputm2)
-      .map(s => Vectors.dense(s.split(' ').map(_.toDouble)))
-    //----------------------------
-*/
-    val SizeVector = CloudCP.RDD_VtoRowMatrix(TensorData)
-      .computeColumnSummaryStatistics().max
-
-
-    val SizeA:Long = SizeVector.apply(0).toLong+1
-    val SizeB:Long = SizeVector.apply(1).toLong+1
-    val SizeC:Long = SizeVector.apply(2).toLong+1
-    val R:Int = 2
-    val Dim_1:Int = 0
-    val Dim_2:Int = 1
-    val Dim_3:Int = 2
-
-    val iterat =100
-    val tolerance = 0.0001
-
-
-
-    var MA:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeA,R,sc)
-    var MB:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeB,R,sc)
-    var MC:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(SizeC,R,sc)
-
-    var N:Int = 0
-
-
-
-/*
-    var MA:IndexedRowMatrix = new IndexedRowMatrix(MAdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
-    var MB:IndexedRowMatrix = new IndexedRowMatrix(MBdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
-    var MC:IndexedRowMatrix = new IndexedRowMatrix(MAdata.zipWithIndex().map{case (x,y) => IndexedRow(y,x)})
-*/
-
-    var ATA = CloudCP.Compute_MTM_RowMatrix(MA)
-    var BTB = CloudCP.Compute_MTM_RowMatrix(MB)
-    var CTC = CloudCP.Compute_MTM_RowMatrix(MC)
-
-    var Lambda:BDV[Double] = BDV.zeros(R)
-    var fit:Double = 0.0
-    var prev_fit:Double =0.0
-    var val_fit:Double =0.0
-
-    /*
-        val testM1 = CalculateM1(TensorData,MB,MC,Dim_1,SizeA,R,sc)
-        testM1.rows.collect().foreach(println)
-        val testM2 = CalculateM2(MB,MC)
-        println(testM2)
-        val testM1M1 = testM1.multiply(testM2)
-        testM1M1.rows.collect().foreach(println)
-
-        Lambda = UpdateLambda(testM1M1)
-        //val RDDLambda = sc.parallelize(Vector(Lambda))
-        //var boradambda = sc.broadcast(RDDLambda.collect())
-
-        println(Lambda)
-
-        val testM1M1_2 = testM1M1.rows.map(x => (x.index, BDV[Double](x.vector.toArray))).mapValues(x=> (x :/ Lambda))
-
-          //IndexedRow(x.index, Vectors.dense(((BDV[Double](x.vector.toArray)) :/ Lambda ).toArray)))
-        testM1M1_2.collect().foreach(println)
-
-        val testM1M2_3 = UpdateMatrix(TensorData,Lambda,MB,MC,Dim_1,SizeA,R,sc)
-        testM1M2_3.rows.collect().foreach(println)
-    */
-
-
-    /*
-        val testB1 = CalculateM1(TensorData,MC,MA,Dim_2,SizeB,R,sc)
-        testB1.rows.collect().foreach(println)
-        val testB2 = testB1.multiply(CalculateM2(MC,MA))
-        testB2.rows.collect().foreach(println)
-
-        for (i <- 0 until R){
-          Lambda = UpdateLambda(testB2,i)
-          MB = UpdateMatrix(TensorData,Lambda,MC,MA,Dim_2,SizeB,R,sc)
-
-        }
-        println(Lambda)
-        MB.rows.collect().foreach(println)
-    */
-
-
-
-    val loop = new Breaks
-
-    loop.breakable{
-
-      for (i <- 0 until  iterat)
-      {
-        MA = CloudCP.UpdateMatrix(TensorData,MB,MC,Dim_1,SizeA,R,sc)
-        Lambda = CloudCP.UpdateLambda(MA,i)
-        MA = CloudCP.NormalizeMatrix(MA,Lambda)
-        ATA = CloudCP.Compute_MTM_RowMatrix(MA)
-
-        MB = CloudCP.UpdateMatrix(TensorData,MC,MA,Dim_2,SizeB,R,sc)
-        Lambda =CloudCP.UpdateLambda(MB,i)
-        MB = CloudCP.NormalizeMatrix(MB,Lambda)
-        BTB = CloudCP.Compute_MTM_RowMatrix(MB)
-
-        MC= CloudCP.UpdateMatrix(TensorData,MA,MB,Dim_3,SizeC,R,sc)
-        Lambda = CloudCP.UpdateLambda(MC,i)
-        MC = CloudCP.NormalizeMatrix(MC,Lambda)
-        CTC= CloudCP.Compute_MTM_RowMatrix(MC)
-
-        prev_fit = fit
-        fit = CloudCP.ComputeFit(TensorData,Lambda,MA,MB,MC,ATA,BTB,CTC)
-        val_fit = CloudCP.FitAbs(fit - prev_fit)
-
-        println(s"Stage $N: val_fit=$val_fit (tol=$tolerance)")
-
-        N = N +1
-
-        if (val_fit < tolerance)
-          loop.break
-      }
-
-
-    }
-
-    //---------------
-    val time_e:Double=System.nanoTime()
-
-    //---------------
-
-
-    /*
-    MA.rows.collect().foreach(println)
-    MB.rows.collect().foreach(println)
-    MC.rows.collect().foreach(println)
-    */
-
-
-
-    // CloudCP.OutputResult(MA,outputPath+"MatrixA")
-    // CloudCP.OutputResult(MB,outputPath+"MatrixB")
-    // CloudCP.OutputResult(MC,outputPath+"MatrixC")
-
-    
-    println(val_fit)
-    println(N)
-    println(Lambda)
-
-    println("Running time is:")
-    println((time_e-time_s)/1000000000+"s\n")
+    return tmp
   }
 
-  /** Convers a SambaTen CPALS factor matrix into a Spark Dataframe
+
+   /** Converts a SambaTen CPALS factor matrix into a Spark Dataframe
     * 
     *
     * @param factMat SambaTen factor matrix as type FactMat = Array[BDV[Double]]
@@ -1009,7 +760,114 @@ object ComplexNetwork {
     
     return factDF
   }
+
+  /** Uses the SambaTen CPALS functionality to decompose the 3-way tensor
+    *
+    * @param tensorSeq list of IndexedRowMatrices representing a tensor K dim
+    * @param rank desired rank of the CPALS result
+    * @param tol desired tolerance of CPALS result
+    * @param maxIter desired maximum iterations for the CPALS function
+    * @param sc implicit Spark Context
+    * @return returns a tuple of factor (._1) matrices and lambdas (._2)
+    */
+  def SambaTenCPALS(
+    tensorSeq: Seq[IndexedRowMatrix],
+    rank: Int = 2, 
+    tol: Double = 0.002/*1e-4*/, 
+    maxIter: Int = 25
+  )(implicit sc: SparkContext) : (Array[FactMat],BDV[Double]) = {
+
+    require(tensorSeq.length > 0, "Tensor sequence must have at least one item")
+
+    val I = tensorSeq(0).numRows.toInt
+    val J = tensorSeq(0).numCols.toInt
+    val K = tensorSeq.length.toInt
+
+    val shape = Coordinate(I,J,K)
+
+    // // create the object for CPALS
+    var myEntries = spark.sparkContext.emptyRDD[TEntry]
+    tensorSeq.zipWithIndex.foreach{ case (layer,k) =>
+      logger.info(s"Building layer $k tensor entry RDD")
+      // layer.rows.collect.foreach(println)
+
+      val tmpRDD = layer.rows
+        .flatMap{ case IndexedRow(i,vec) => 
+          vec.toArray.zipWithIndex.map{ case(value,j) => (i,j,k,value)}}
+        .map{ case (i,j,k,value) => 
+          new TEntry(Coordinate(i.toInt,j.toInt,k.toInt), value) }
+      
+      myEntries = myEntries ++ tmpRDD
+    }
+    
+    // build the tensor
+    val myTensor = new CoordinateTensor(myEntries, shape).persist
+    // // assert(Util.isClose(model.test(testTensor), math.sqrt(dec*dec)/testTensor.norm))
+    val t0 = System.nanoTime()
+    val genModel = (new CPALS(rank=rank,tol=tol,maxIter=maxIter)).run(myTensor)
+    // val genModel = (new CPALS(rank=rank,tol=tol)).run(myTensor)
+    val t1 = System.nanoTime
+    val etime = (t1-t0)/1e9
+    val error = genModel.test(myTensor)
+    logger.info(s"relative error: $error, time cost: $etime")
+
+    return (genModel.getFactMats, genModel.getLambda)
+    // return genModel
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  ///// KEEPING THIS FOR FUTURE DEVELOPMENT, BUT NOW USING SAMBATEN CPALS ////
+  ////////////////////////////////////////////////////////////////////////////
+  // def tensorMatricization (adjMats: Seq[IndexedRowMatrix]) = {
+    // TODO: this actually has not been tested as a function.
+    // Need to figure out how to convert adjMats to the following
+    // val adjRDD = adjDF.select(array(matCols:_*).as("arr")).as[Array[Double]].rdd
+    // var mode1Seq = Seq[RDD[MatrixEntry]]()
+    // var mode2Seq = Seq[RDD[MatrixEntry]]()
+    // var mode3Seq = Seq[RDD[MatrixEntry]]()
+
+    // adMats.foreach{ adjRDD => 
+    
+    //   val startMat: Instant = Instant.now() 
+    
+    //   // Mode-1 Matricization
+    //   val tmpOneRDD = adjRDD.zipWithIndex
+    //     .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(i, L_num*N_dim+j, v.toDouble)}}
+    //   mode1Seq = mode1Seq ++ Seq(tmpOneRDD)
+    //   // Mode-2 Matricization (i.e., flip i and j (transpose) of mode-1)
+    //   val tmpTwoRDD = adjRDD.zipWithIndex
+    //     .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(j, L_num*N_dim+i, v.toDouble)}}
+    //   mode2Seq = mode2Seq ++ Seq(tmpTwoRDD)
+    //   // Mode-3 Matricization (i.e., rows=fibers (L_num-dim), columns=(i,j) element)
+    //   val tmpThreeRDD = adjRDD.zipWithIndex
+    //     .flatMap{ case(arr,i) => arr.zipWithIndex.map{case(v,j) => MatrixEntry(L_num, i*N_dim+j, v.toDouble)}}
+    //   mode3Seq = mode3Seq ++ Seq(tmpThreeRDD)
+
+    //   logger.info(s"Layer ${layer} matricization took ${Duration.between(startMat,Instant.now()).toMillis()} ms")
+    
+    // } // end foreach GraphFrame
+
+
+    // /**
+    //   * Combine the mode-n matrices for each layer and create a CoordinateMatrix
+    //   */
+    // var unionStart: Instant = Instant.now() 
+    // val mode1Rdd = sc.union(mode1Seq)
+    // logger.info(s"Mode-1 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
+    // val mode1Mat = new CoordinateMatrix(mode1Rdd) // assert: dim = N x N*L
+
+    // unionStart = Instant.now() 
+    // val mode2Rdd = sc.union(mode2Seq)
+    // logger.info(s"Mode-2 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
+    // val mode2Mat = new CoordinateMatrix(mode2Rdd) // assert: dim = N x N*L
+
+    // unionStart = Instant.now() 
+    // val mode3Rdd = sc.union(mode3Seq)
+    // logger.info(s"Mode-3 Union took: ${Duration.between(unionStart,Instant.now()).toMillis()} ms")
+    // val mode3Mat = new CoordinateMatrix(mode3Rdd) // assert: dim = L x N*N
+    //////////////////////////////////////////////////////////////////////////
   // }
+
    /**
     * Function to ingest a DataFrame with layer column name identified
     * and return a GraphFrame object. The idea is that multiple layers
@@ -1022,7 +880,7 @@ object ComplexNetwork {
     *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
     *  @param persist boolean flag when true persists the graph DF to memory
     *  @param verbose boolean flag when true sets verbose logging for this function 
-    *  @return a GraphFrame object
+    *  @return a DataFrame for the communities and a DataFrame for the personalities
     */
   def buildMulti(
       // df_list: List[DataFrame], 
@@ -1031,18 +889,14 @@ object ComplexNetwork {
       csv: Boolean = false,
       persist: Boolean = true,
       verbose: Boolean = false
-    )(implicit sc: SparkContext) : GraphFrame = {
+    )(implicit sc: SparkContext) : Seq[IndexedRowMatrix] = {
     
+    import spark.implicits._
+
     require(gdfs.length > 0, "There must be at least one layer for buildMulti().")
 
     val start: Instant = Instant.now() //.now(fixedClock)
-    // val start: Int = 100
     logger.info(s"Starting buildMulti()...")
-    /** get the SparkSession, SparkContext, and import spark implicits
-     */
-    //val spark = this.sparkSession
-    // val sc = spark.sparkContext
-    import spark.implicits._
 
     // use for task timing
     var timer_start: Instant = Instant.now() 
@@ -1051,27 +905,32 @@ object ComplexNetwork {
     var N_dim:Long = 0           // A,B dim = N_dim (node communities)
     var L_dim:Long = gdfs.length.toLong // C dim = L_dim (layers)
 
-    // get the nodes
-    var finalDF = gdfs(0)._2.vertices.select("id","name","age","country")
+    // initialize the global community and personality DFs
+    _comsDF = gdfs(0)._2.vertices.select("id").orderBy(asc("id"))
+    _ffmsDF = gdfs.map{ case (l,g) => l}.toDF("layer")
     
     /** 
       * build adjacency matrix 
       * */
     // store each mode MatrixEntry in a sequence
-    var adjDFSeq = Seq[DataFrame]()
-    var mode1Seq = Seq[RDD[MatrixEntry]]()
-    var mode2Seq = Seq[RDD[MatrixEntry]]()
-    var mode3Seq = Seq[RDD[MatrixEntry]]()
+    // var mode1Seq = Seq[RDD[MatrixEntry]]()
+    // var mode2Seq = Seq[RDD[MatrixEntry]]()
+    // var mode3Seq = Seq[RDD[MatrixEntry]]()
     var adjIrmSeq = Seq[IndexedRowMatrix]()
     gdfs.zipWithIndex.foreach{ case(layer_gdf,layer_num) =>
 
       val layer = layer_gdf._1
       val ogdf = layer_gdf._2
 
-      logger.info(s"Adding '${layer}' layer...")      
+      logger.info(s"Adding '${layer}' layer...")    
+
       val V_o = ogdf.vertices
       val E_o = ogdf.edges
       
+      // add layer to final DF (for later use)
+      // comsDF = comsDF.as("df1").join(V_o.as("df2"), df1("id") === df2("id"))//.select("df1.id", "df1.name", "df2.age")
+      // comsDF = comsDF.withColumn(s"${layer}",V_o(s"${layer}_Z"))
+
       /** the edge DataFrame is the adjacency matrix with the vertex 
        *  DataFrame used to fill in non-connected nodes
       */
@@ -1106,16 +965,14 @@ object ComplexNetwork {
         .orderBy(asc("id"))
         .na.fill(0,adjCols)
 
-    
-      adjDFSeq = adjDFSeq ++ Seq(adjDF)
-      // logger.info(s"${layer} Adjacency DF")      
-      // adjDF.show()
+      // update global adjaceneny matrix
+      _adjDFSeq = _adjDFSeq ++ Seq((layer,adjDF))
      
       /** Convert the DataFrame to an RDD based adjacency matrix and
        * calculate the mode-n matricizations (unfoldings)
        * - refer to Kolda, et. al, "Tensor Decompositions and Applications"
       */
-        // get Adjacency matrix columns
+      // get Adjacency matrix columns
       val matCols = adjCols.map(col(_))
       // set matrix dimension values
       N_dim = adjDF.count
@@ -1131,8 +988,6 @@ object ComplexNetwork {
     ////////////////////////////////////////////////////////////////////////////
     ///// KEEPING THIS FOR FUTURE DEVELOPMENT, BUT NOW USING SAMBATEN CPALS ////
     ////////////////////////////////////////////////////////////////////////////
-    
-
     //   val startMat: Instant = Instant.now() 
     
     //   // Mode-1 Matricization
@@ -1151,9 +1006,10 @@ object ComplexNetwork {
     //   logger.info(s"Layer ${layer} matricization took ${Duration.between(startMat,Instant.now()).toMillis()} ms")
     ////////////////////////////////////////////////////////////////////////////
     
+
     } // end foreach GraphFrame
 
-
+    return adjIrmSeq
     // /**
     //   * Combine the mode-n matrices for each layer and create a CoordinateMatrix
     //   */
@@ -1183,7 +1039,9 @@ object ComplexNetwork {
      * B = edges out of node j, N x R (number of nodes)
      * C = personality rank, L x R (number of FFM layers)
      */
-    
+    ////////////////////////////////////////////////////////////////////////////
+    ///// KEEPING THIS FOR FUTURE DEVELOPMENT, BUT NOW USING SAMBATEN CPALS ////
+    ////////////////////////////////////////////////////////////////////////////
     // tensor parameters
     // val rank = 3 // rank/# of components
 
@@ -1198,229 +1056,156 @@ object ComplexNetwork {
     //                         iter=25,
     //                         tol=0.1,
     //                         verbose=true)
+    //////////////////////////////////////////////////////////////////////////
 
-    // println(s"lambda1")
-    // println(facts._2)
-    // println(s"A1")
-    // facts._1.rows.take(5).foreach(println)
-    // println("\n")
+    // val rank = 2
+    // // SambaTenCPALS returns a tuple of (Array(factorMatrices),lambdas)
+    // val cpdResult = SambaTenCPALS(adjIrmSeq,rank=rank,tol=0.002)
 
-    // println(s"lambda2")
-    // println(facts._4)
-    // println(s"A2")
-    // facts._3.rows.take(5).foreach(println)
-    // println("\n")
+    // val factors = cpdResult._1 // Array(factor1,factor2,factor3)
+    // val lambdas = cpdResult._2 
 
-    //  println(s"lambda3")
-    // println(facts._6)
-    // println(s"A3")
-    // facts._5.rows.take(5).foreach(println)
-    // println("\n")
+    // val fact1DF = factMatToDF(factors(0),rank,"A").repartition(1)
+    //   // .withColumn("joinCol", monotonically_increasing_id())
 
-    val rank = 2
-    val genModel = SambaTenCPALS(adjIrmSeq,rank=rank,tol=0.002)
+    // val fact2DF = factMatToDF(factors(1),rank,"B").repartition(1)
+    //   // .withColumn("joinCol", monotonically_increasing_id())
+    // // third factor is the final dataframe
+    // val fact3DF = factMatToDF(factors(2),rank,"C").repartition(1)
+    //   // .withColumn("joinCol", monotonically_increasing_id())
 
-    val factors = genModel.getFactMats
-    val lambdas = genModel.getLambda
-
-    // factors.zipWithIndex.foreach{ case(f,n) => 
-    //   val factBDM = toBDM(f)
-
-    //   logger.info(s"Factor $n matrix:")
-    //   println("\n")
-    //   println(factBDM)
-    //   println("\n")
-    //   logger.info(s"Factor $n columns: ${factBDM.cols}")
-    //   logger.info(s"Factor $n rows: ${factBDM.rows}")
-    // }
-
-    // logger.info(s"Factor lambdas:")
-    // println(lambdas)
-
-    val factor1 = factors(0)
-    val factor2 = factors(1)
-    val factor3 = factors(2)
-
-    println("factor1")
-    println(factor1)
-
-    // build the schema (is this needed?)
-    // val rankCols = Seq[StructField]()
-    // for (r <- 0 until lambdas.cols) rankCols = rankCols ++ Seq(StructField(s"rank_$r", DoubleType, nullable = false))
-    // val schema = StructType(rankCols)
-
-    // var rowRDDSeq = Seq[RDD[Vector]]()
-    // var rowRDDSeq: RDD[Vector] = sc.emptyRDD[Vector]
-    // var rowRDDSeq: RDD[Vector] = sc.emptyRDD[Vector]
-    // var rowRDDSeq = Seq[Vector]()
-    // var rowRDDSeq = Seq[Array[Double]]()
-    // var rowSeq = Seq[Array[Double]]()
-    // var colSeq = Seq[String]()
-    val fact1DF = factMatToDF(factor1,rank,"A").repartition(1)
-      .withColumn("joinCol", monotonically_increasing_id())
-
-    val fact2DF = factMatToDF(factor2,rank,"B").repartition(1)
-      .withColumn("joinCol", monotonically_increasing_id())
-
-    val fact3DF = factMatToDF(factor3,rank,"C").repartition(1)
-      .withColumn("joinCol", monotonically_increasing_id())
-    // factor1.zipWithIndex.foreach{ case(vec,r) => 
-    //   // rowRDDSeq = rowRDDSeq ++ sc.parallelize(Vectors.dense(vec.toArray))
-    //   println(s"factor1, component $r")
-    //   println(vec)
-
-    //   // rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
-    //   rowSeq = rowSeq ++ Seq(vec.toArray.map(_.toDouble))
-    //   // rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
-    //   // colSeq = colSeq ++ Seq(s"A_$r")
-    //   // rowSeq = rowSeq ++ vec.toArray.toSeq
-    // }
-    // val rowRDD = sc.parallelize(rowRDDSeq).map{row => row.toArray.toSeq}
-    // val fact1DF = rowSeq.toDF()
-    //   .select((0 until rank).map(i => col("value")(i).alias(s"A_$i")): _*)
-    //   .repartition(1)
+    // /** 
+    //   * build the final dataframes for communities (coms) and personalities (ffms)
+    //   * 
+    //   * NOTE: to have a high probability of creating increasing IDs for the 
+    //   *       DataFrame join, we have to repartition the DF so that all of the 
+    //   *       data is on the same partition
+    //   */
+    
+    // comsDF = comsDF.repartition(1)
     //   .withColumn("joinCol", monotonically_increasing_id())
-      
+    //   .join(fact1DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+    //   .join(fact2DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+    //   .drop("joinCol")
 
-    
-    
+    // ffmsDF = ffmsDF.repartition(1)
+    //   .withColumn("joinCol", monotonically_increasing_id())
+    //   .join(fact3DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+    //   .drop("joinCol")
 
+    // // update global community and personality matrices
+    // _comsDF = comsDF
+    // _ffmsDF = ffmsDF
 
-    // rowRDD.collect.foreach(println)
-    // val fact1DF = rowRDD.toDF(colSeq: _*)//.select("value", explode($"value"))
-    // val fact1DF = rowRDD.toDF()//.select("value", explode($"value"))
-    // val rowRDD = sc.parallelize(Row.fromSeq(rowSeq))
+    // // // val A2 = coordFactorInit(N_dim,R)
+    // // val A2 = rowFactorInit(N_dim,R)
+    // // println(s"\nfactB: numRows=${A2.numRows}, numCols=${A2.numCols}")
+    // // println(s"A2 as IndexedRowMatrix")
+    // // // A2.toIndexedRowMatrix.rows.collect.foreach(println)
+    // // A2.rows.collect.foreach(println)
 
-    // val fact1Rows = factor1.map{row => Row(row.map(_.toDouble))}
-    // val rowRDD = sc.parallelize(fact1Rows)
-    // val fact1DF = spark.createDataFrame(rowRDD)
-    fact1DF.printSchema()
-    fact1DF.show()
-    finalDF = finalDF.repartition(1)
-      .withColumn("joinCol", monotonically_increasing_id())
-      .join(fact1DF,"joinCol")
-      .join(fact2DF,"joinCol")
-      // .join(fact3DF,"joinCol")
-      .drop("joinCol")
-      // .join(fact1DF,finalDF("join2") ===  fact1DF("join1"),"inner")
-      // .drop("join1")
-    // tmpDF.show()
-    finalDF.show()
-    fact3DF.show()
-    // adjDFSeq(0).show()
-    // val test = adjDFSeq(0).join(fact1DF)
-    // test.show()
-    // val fullTensor = genModel.reconstruct.persist
-
-
-    // // val A2 = coordFactorInit(N_dim,R)
-    // val A2 = rowFactorInit(N_dim,R)
-    // println(s"\nfactB: numRows=${A2.numRows}, numCols=${A2.numCols}")
-    // println(s"A2 as IndexedRowMatrix")
-    // // A2.toIndexedRowMatrix.rows.collect.foreach(println)
-    // A2.rows.collect.foreach(println)
-
-    // // val A3 = coordFactorInit(L_dim,R)
-    // val A3 = rowFactorInit(L_dim,R)
-    // println(s"\nfactC: numRows=${A3.numRows}, numCols=${A3.numCols}")
-    // println(s"A3 as IndexedRowMatrix")
-    // // A3.toIndexedRowMatrix.rows.collect.foreach(println)
-    // A3.rows.collect.foreach(println)
-    // println("\n")
+    // // // val A3 = coordFactorInit(L_dim,R)
+    // // val A3 = rowFactorInit(L_dim,R)
+    // // println(s"\nfactC: numRows=${A3.numRows}, numCols=${A3.numCols}")
+    // // println(s"A3 as IndexedRowMatrix")
+    // // // A3.toIndexedRowMatrix.rows.collect.foreach(println)
+    // // A3.rows.collect.foreach(println)
+    // // println("\n")
     
 
-    // ///////////////////////// for debugging ///////////////////////////////////
-    // // C^T C, B^T B are the Garmian matricies! 
-    // timer_start = Instant.now()
-    // // var AtA_brz = A1.computeGramianMatrix()
-    // var BtB_brz = A2.computeGramianMatrix()
-    // var CtC_brz = A3.computeGramianMatrix()
-    // // intermediate step - convert to Breeze DenseMatrix(BDM)
-    // val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
-    // val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
-    // val tmp_breeze = M1M:*M2M
-    // logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    // println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
-    // println(tmp_breeze)
-    // println("\n")
-    // timer_start = Instant.now()
-    // val tmp_pinv = pinv(tmp_breeze)
-    // logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    // println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
-    // println(tmp_pinv)
+    // // ///////////////////////// for debugging ///////////////////////////////////
+    // // // C^T C, B^T B are the Garmian matricies! 
+    // // timer_start = Instant.now()
+    // // // var AtA_brz = A1.computeGramianMatrix()
+    // // var BtB_brz = A2.computeGramianMatrix()
+    // // var CtC_brz = A3.computeGramianMatrix()
+    // // // intermediate step - convert to Breeze DenseMatrix(BDM)
+    // // val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
+    // // val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
+    // // val tmp_breeze = M1M:*M2M
+    // // logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
+    // // println(tmp_breeze)
+    // // println("\n")
+    // // timer_start = Instant.now()
+    // // val tmp_pinv = pinv(tmp_breeze)
+    // // logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
+    // // println(tmp_pinv)
 
-    // ///////////////////////////////////////////////////////////////////////////
+    // // ///////////////////////////////////////////////////////////////////////////
     
-    // /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
-    //   * 
-    //   */
-    // timer_start = Instant.now() 
-    // val blkA3 = A3.toBlockMatrix
-    // val blkA2 = A2.toBlockMatrix
-    // // val blkA1 = A1.toBlockMatrix
+    // // /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
+    // //   * 
+    // //   */
+    // // timer_start = Instant.now() 
+    // // val blkA3 = A3.toBlockMatrix
+    // // val blkA2 = A2.toBlockMatrix
+    // // // val blkA1 = A1.toBlockMatrix
 
-    // timer_start = Instant.now() 
-    // /////
-    // val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
-    // val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
-    // // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
+    // // timer_start = Instant.now() 
+    // // /////
+    // // val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
+    // // val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
+    // // // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
 
-    // val A3hA2 = hmProduct(A3tA3,A2tA2)
-    // /////
-    // logger.info(s"Hardamard product A3hA2 with A3tA3/A2tA2 transposes took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    // println(s"A3hA2: rows=${A3hA2.numRows}, cols=${A3hA2.numCols}")
-    // A3hA2.entries.collect.foreach(println)
-    // println("\n")
+    // // val A3hA2 = hmProduct(A3tA3,A2tA2)
+    // // /////
+    // // logger.info(s"Hardamard product A3hA2 with A3tA3/A2tA2 transposes took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // println(s"A3hA2: rows=${A3hA2.numRows}, cols=${A3hA2.numCols}")
+    // // A3hA2.entries.collect.foreach(println)
+    // // println("\n")
 
-    // /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
-    //   *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
-    //   * 
-    //   */ 
-    // timer_start = Instant.now() 
-    // /////
-    // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
-    // /////
-    // logger.info(s"Moore-Pensrose A3hA2 pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
-    // println(s"A3hA2_pinv Pseudo Inverse\n$A3hA2_pinv")
-    // println("\n")
+    // // /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
+    // //   *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
+    // //   * 
+    // //   */ 
+    // // timer_start = Instant.now() 
+    // // /////
+    // // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
+    // // /////
+    // // logger.info(s"Moore-Pensrose A3hA2 pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // println(s"A3hA2_pinv Pseudo Inverse\n$A3hA2_pinv")
+    // // println("\n")
 
-    // /** Khatri-Rao Product (A3kA2=NLxR,CkA=NLxR,BkA=NNxR)
-    //   * 
-    //   */
-    // timer_start = Instant.now() 
-    // /////
-    // val A3kA2 = krProduct(A3,A2)
-    // /////
-    // logger.info(s"Khatri-Rao product A3kA2 took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // /** Khatri-Rao Product (A3kA2=NLxR,CkA=NLxR,BkA=NNxR)
+    // //   * 
+    // //   */
+    // // timer_start = Instant.now() 
+    // // /////
+    // // val A3kA2 = krProduct(A3,A2)
+    // // /////
+    // // logger.info(s"Khatri-Rao product A3kA2 took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
 
-    // println(s"A3kA2")
-    // A3kA2.rows.collect.foreach(println)
-    // println("\n")
+    // // println(s"A3kA2")
+    // // A3kA2.rows.collect.foreach(println)
+    // // println("\n")
 
-    // /** Multiply tensor, Khatri-Rao, and Hardamard 
-    //   * 
-    //   */
-    // timer_start = Instant.now() 
-    // /////
-    // val Z_n = A3kA2.multiply(A3hA2_pinv)
-    // val A1 = mode1Mat.toBlockMatrix.multiply(Z_n.toBlockMatrix)
-    // /////
-    // logger.info(s"Multiplying tensor,krProduct, and hmProduct took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+    // // /** Multiply tensor, Khatri-Rao, and Hardamard 
+    // //   * 
+    // //   */
+    // // timer_start = Instant.now() 
+    // // /////
+    // // val Z_n = A3kA2.multiply(A3hA2_pinv)
+    // // val A1 = mode1Mat.toBlockMatrix.multiply(Z_n.toBlockMatrix)
+    // // /////
+    // // logger.info(s"Multiplying tensor,krProduct, and hmProduct took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
      
-    // println(s"mode1")
-    // mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
-    // println("\n")
-    // println(s"Z_n")
-    // Z_n.rows.collect.foreach(println)
-    // println("\n")
+    // // println(s"mode1")
+    // // mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+    // // println("\n")
+    // // println(s"Z_n")
+    // // Z_n.rows.collect.foreach(println)
+    // // println("\n")
 
-    // println(s"A1")
-    // A1.toIndexedRowMatrix.rows.collect.foreach(println)
-    // println("\n")
+    // // println(s"A1")
+    // // A1.toIndexedRowMatrix.rows.collect.foreach(println)
+    // // println("\n")
    
-    // sys.exit()
+    // // sys.exit()
 
-    return gdfs.head._2
+    // // return gdfs.head._2
+    // return (comsDF, ffmsDF)
   }
 
   /**
@@ -1495,26 +1280,237 @@ object ComplexNetwork {
    *  @return a GraphFrame object
    */
   def interLayerAnlaysis(
-      gdf: GraphFrame, 
-      layerCol: String, 
-      alg: String,
+      adjMats: Seq[IndexedRowMatrix], 
+      rank: Int = 2, 
+      tol: Double = 0.002, 
+      maxIter: Int = 20, 
+      alg: String = "CPALS",
       csv: Boolean = false,
       verbose: Boolean = false
-    ) : GraphFrame = {
+    )(implicit sc: SparkContext) : (DataFrame, DataFrame) = {
 
-    logger.info("interLayerAnlaysis not yet developed.")
+    logger.info(s"Starting interlayer analysis. Running: ${alg} algorithm.")
     /** get the SparkSession, SparkContext, and import spark implicits
      */
     //val spark = this.sparkSession
-    val sc = spark.sparkContext
+    // val sc = spark.sparkContext
     import spark.implicits._
 
-    var tmp_gdf = gdf
+    if(alg == "CPALS")
+    {
+      /**
+       * Tensor factorization via CP decomposition of rank R
+       * A = edges into node i, N x R (number of nodes)
+       * B = edges out of node j, N x R (number of nodes)
+       * C = personality rank, L x R (number of FFM layers)
+       */
+      ////////////////////////////////////////////////////////////////////////////
+      ///// KEEPING THIS FOR FUTURE DEVELOPMENT, BUT NOW USING SAMBATEN CPALS ////
+      ////////////////////////////////////////////////////////////////////////////
+      // tensor parameters
+      // val rank = 3 // rank/# of components
 
-    // if(persist) tmp_gdf.persist(StorageLevel.MEMORY_AND_DISK) 
-    return tmp_gdf
+      // trying this I found on github
+      // facts = (A1,lambda1,A2,lambda2,A3,lambda3)
+      
+      // This didn't seem to converge, but now I'm thinking it might have...
+      // val facts = tensor3CPD(mode1Mat.toIndexedRowMatrix,
+      //                         mode2Mat.toIndexedRowMatrix,
+      //                         mode3Mat.toIndexedRowMatrix,
+      //                         rank=R,
+      //                         iter=25,
+      //                         tol=0.1,
+      //                         verbose=true)
+      //////////////////////////////////////////////////////////////////////////
+
+      // SambaTenCPALS returns a tuple of (Array(factorMatrices),lambdas)
+      val cpdResult = SambaTenCPALS(adjMats,rank=rank,tol=tol,maxIter=maxIter)
+
+      val factors = cpdResult._1 // Array(factor1,factor2,factor3)
+      val lambdas = cpdResult._2 
+
+      val fact1DF = factMatToDF(factors(0),rank,"A").repartition(1)
+        // .withColumn("joinCol", monotonically_increasing_id())
+
+      val fact2DF = factMatToDF(factors(1),rank,"B").repartition(1)
+        // .withColumn("joinCol", monotonically_increasing_id())
+      // third factor is the final dataframe
+      val fact3DF = factMatToDF(factors(2),rank,"C").repartition(1)
+        // .withColumn("joinCol", monotonically_increasing_id())
+
+      _lmdaDF = lambdaToDF(lambdas,rank).repartition(1)
+
+      /** 
+        * build the final dataframes for communities (coms) and personalities (ffms)
+        * 
+        * NOTE: to have a high probability of creating increasing IDs for the 
+        *       DataFrame join, we have to repartition the DF so that all of the 
+        *       data is on the same partition
+        */
+      
+      _comsDF = _comsDF.repartition(1)
+        .withColumn("joinCol", monotonically_increasing_id())
+        .join(fact1DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+        .join(fact2DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+        .drop("joinCol")
+
+      _ffmsDF = _ffmsDF.repartition(1)
+        .withColumn("joinCol", monotonically_increasing_id())
+        .join(fact3DF.withColumn("joinCol", monotonically_increasing_id()),"joinCol")
+        .drop("joinCol")
+
+      // update global community and personality matrices
+      // _comsDF = comsDF
+      // _ffmsDF = ffmsDF
+
+      // // val A2 = coordFactorInit(N_dim,R)
+      // val A2 = rowFactorInit(N_dim,R)
+      // println(s"\nfactB: numRows=${A2.numRows}, numCols=${A2.numCols}")
+      // println(s"A2 as IndexedRowMatrix")
+      // // A2.toIndexedRowMatrix.rows.collect.foreach(println)
+      // A2.rows.collect.foreach(println)
+
+      // // val A3 = coordFactorInit(L_dim,R)
+      // val A3 = rowFactorInit(L_dim,R)
+      // println(s"\nfactC: numRows=${A3.numRows}, numCols=${A3.numCols}")
+      // println(s"A3 as IndexedRowMatrix")
+      // // A3.toIndexedRowMatrix.rows.collect.foreach(println)
+      // A3.rows.collect.foreach(println)
+      // println("\n")
+      
+
+      // ///////////////////////// for debugging ///////////////////////////////////
+      // // C^T C, B^T B are the Garmian matricies! 
+      // timer_start = Instant.now()
+      // // var AtA_brz = A1.computeGramianMatrix()
+      // var BtB_brz = A2.computeGramianMatrix()
+      // var CtC_brz = A3.computeGramianMatrix()
+      // // intermediate step - convert to Breeze DenseMatrix(BDM)
+      // val M1M:BDM[Double] = new BDM[Double](CtC_brz.numRows,CtC_brz.numCols,CtC_brz.toArray)
+      // val M2M:BDM[Double] = new BDM[Double](BtB_brz.numRows,BtB_brz.numCols,BtB_brz.toArray)
+      // val tmp_breeze = M1M:*M2M
+      // logger.info(s"Breeze hardamard matrix multiplication took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      // println(s"tmp_breeze: rows=${tmp_breeze.rows}, cols=${tmp_breeze.cols}")
+      // println(tmp_breeze)
+      // println("\n")
+      // timer_start = Instant.now()
+      // val tmp_pinv = pinv(tmp_breeze)
+      // logger.info(s"Breeze pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      // println(s"tmp_breeze: rows=${tmp_pinv.rows}, cols=${tmp_pinv.cols}")
+      // println(tmp_pinv)
+
+      // ///////////////////////////////////////////////////////////////////////////
+      
+      // /**  A^TA, B^TB, C^TC Hardamard products (element-wise multiplication)
+      //   * 
+      //   */
+      // timer_start = Instant.now() 
+      // val blkA3 = A3.toBlockMatrix
+      // val blkA2 = A2.toBlockMatrix
+      // // val blkA1 = A1.toBlockMatrix
+
+      // timer_start = Instant.now() 
+      // /////
+      // val A3tA3 = (blkA3.transpose).multiply(blkA3).toIndexedRowMatrix
+      // val A2tA2 = (blkA2.transpose).multiply(blkA2).toIndexedRowMatrix
+      // // val AtA = (blkA1.transpose).multiply(blkA1).toIndexedRowMatrix
+
+      // val A3hA2 = hmProduct(A3tA3,A2tA2)
+      // /////
+      // logger.info(s"Hardamard product A3hA2 with A3tA3/A2tA2 transposes took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      // println(s"A3hA2: rows=${A3hA2.numRows}, cols=${A3hA2.numCols}")
+      // A3hA2.entries.collect.foreach(println)
+      // println("\n")
+
+      // /** Moore-Penrose pseudo-inverse using Breeze LinAlg package
+      //   *  - output is a Matrix, perfect for IndexedRowMatrix multiply!
+      //   * 
+      //   */ 
+      // timer_start = Instant.now() 
+      // /////
+      // val A3hA2_pinv = mpInverse(A3hA2.toIndexedRowMatrix) // returns a Matrix!
+      // /////
+      // logger.info(s"Moore-Pensrose A3hA2 pseudo inverse took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      // println(s"A3hA2_pinv Pseudo Inverse\n$A3hA2_pinv")
+      // println("\n")
+
+      // /** Khatri-Rao Product (A3kA2=NLxR,CkA=NLxR,BkA=NNxR)
+      //   * 
+      //   */
+      // timer_start = Instant.now() 
+      // /////
+      // val A3kA2 = krProduct(A3,A2)
+      // /////
+      // logger.info(s"Khatri-Rao product A3kA2 took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+
+      // println(s"A3kA2")
+      // A3kA2.rows.collect.foreach(println)
+      // println("\n")
+
+      // /** Multiply tensor, Khatri-Rao, and Hardamard 
+      //   * 
+      //   */
+      // timer_start = Instant.now() 
+      // /////
+      // val Z_n = A3kA2.multiply(A3hA2_pinv)
+      // val A1 = mode1Mat.toBlockMatrix.multiply(Z_n.toBlockMatrix)
+      // /////
+      // logger.info(s"Multiplying tensor,krProduct, and hmProduct took ${Duration.between(timer_start,Instant.now()).toMillis()} ms")
+      
+      // println(s"mode1")
+      // mode1Mat.toIndexedRowMatrix.rows.collect.foreach(println)
+      // println("\n")
+      // println(s"Z_n")
+      // Z_n.rows.collect.foreach(println)
+      // println("\n")
+
+      // println(s"A1")
+      // A1.toIndexedRowMatrix.rows.collect.foreach(println)
+      // println("\n")
+    
+      // sys.exit()
+
+      // return gdfs.head._2
+    }
+    else
+    {
+      logger.error("Unknown algorithm chosen for interlayer analysis.")
+    }
+
+     if(csv) 
+    {
+      saveAll(_comsDF.count.toInt,rank,tol)
+    }
+    return (_comsDF, _ffmsDF)
   }
     
+  def saveAll(dsize: Int = 0, rank: Int = 0,tol: Double = 0.002) = {
+    val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer"
+    logger.info(s"Saving global data as CSV to '$gcp_path'")
+    var layer_cnt = 0
+    // save adjacney matrix
+    _adjDFSeq.foreach{ case (layer,adjDF) => 
+      layer_cnt = layer_cnt + 1
+      adjDF.writeToCSV(s"${gcp_path}/${layer}-adjacency-matrix_${dsize}-nodes.csv")
+      logger.info(s"Successfully saved ${layer} adjacency matrix to '$gcp_path'")
+    }
+    // save community factor matrix
+    _comsDF.writeToCSV(s"${gcp_path}/community-factors_rank-${rank}_tol-${tol}_${dsize}-nodes.csv")
+    logger.info(s"Successfully saved community factor matrix of rank-${rank} to '$gcp_path'")
+
+    // save personality matrix
+    _ffmsDF.writeToCSV(s"${gcp_path}/personality-factor-matrix_rank-${rank}_tol-${tol}_${layer_cnt}-layers.csv")
+    logger.info(s"Successfully saved personality factor matrix of rank-${rank} to '$gcp_path'")
+
+    // save lambda vector
+    _lmdaDF.writeToCSV(s"${gcp_path}/lambda-vector_rank-${rank}_tol-{$tol}_${dsize}-nodes.csv")
+    logger.info(s"Successfully saved lambda vector of rank-${rank} to '$gcp_path'")
+
+    // save the initial dataframe
+    _dinDF.writeToCSV(s"${gcp_path}/input_dataframe-_${dsize}-nodes.csv")
+    logger.info(s"Successfully saved lambda vector of rank-${rank} to '$gcp_path'")
+
+  }
 
   /** main routine
    * requires 2 input files to build network 
@@ -1537,9 +1533,14 @@ object ComplexNetwork {
     // var neo4j_port = "7687" //bolt port
     // var neo4j_url = s"bolt://${neo4j_host}:${neo4j_port}" //"neo4j://localhost"
     // check arg input
-    var DEBUG = 0
-    var _set_size = 0.0
-    var csvFile = ""
+    var DEBUG: Int = 0
+    var _set_size: Int  = 0
+    var _rank: Int = 1
+    var _tol: Double = 0.002
+    var _maxIter: Int = 20
+    var csvFile: String = ""
+
+    // TODO: arg parser
     if (args.length == 0) 
     {
       throw new IllegalArgumentException(
@@ -1547,12 +1548,26 @@ object ComplexNetwork {
     } 
     else if (args.length > 0 && !args(0).isEmpty()) 
     {
-      _set_size = args(0).toDouble // determines how big the final dataset is, 0 to use entire dataset
+      _set_size = args(0).toInt // determines how big the final dataset is, 0 to use entire dataset
+
+      if (args.length > 1 && !args(1).isEmpty())
+      {
+        _rank = args(1).toInt
+      }
+
+      if (args.length > 2 && !args(2).isEmpty())
+      {
+        _tol = args(2).toDouble
+      }
+      if (args.length > 3 && !args(3).isEmpty())
+      {
+        _maxIter = args(3).toInt
+      }
     }
 
-    if (args.length > 1 && !args(1).isEmpty()) 
+    if (args.length > 4 && !args(4).isEmpty()) 
     {
-      csvFile = args(1)
+      csvFile = args(4)
       DEBUG = 1
       // neo4j_host = "localhost"
       // neo4j_user = "neo4j"
@@ -1567,22 +1582,8 @@ object ComplexNetwork {
     logger.info(s"Starting " + prgName + " now...")
      /** get the SparkSession, SparkContext, and import spark implicits
      */
-    //val spark = this.sparkSession
-    implicit val sc = spark.sparkContext
+    implicit val sc = spark.sparkContext // create implicit Spark Context
     import spark.implicits._
-    // this.spark = SparkSession.builder()
-    //   .config("spark.neo4j.bolt.encryption", neo4j_ecrypt)
-    //   .config("spark.neo4j.bolt.user", neo4j_user)
-    //   .config("spark.neo4j.bolt.password", neo4j_pass)
-    //   .config("spark.neo4j.bolt.url", neo4j_url)
-    //   // .master("local[*]") //"Spark://master:7077"
-    //   .appName(prgName)
-    //   .getOrCreate()
-
-    // the SparkContext for later use
-    // val sc = spark.sparkContext
-    // import implicits or this session
-    // import spark.implicits._
     /**/
 
     /** Get some cluster specifications and set some parameters
@@ -1634,25 +1635,48 @@ object ComplexNetwork {
       logger.info(s"Data successfully read into Spark DataFrame!")
     }
 
+    // for testing, limit to _set_size records
+    // TODO: orderBy(asc()) before sampling to make deterministic?
+    if(_set_size > 0)
+    {
+      tempDF = tempDF.orderBy(asc("uuid")).limit(_set_size)
+      logger.info(s"Rows in sampled DF: ${tempDF.count()}")
+    }
+
     var dinDF = tempDF.repartition(numPartitions)
     dinDF.persist(StorageLevel.MEMORY_AND_DISK).count
 
-    // for testing, limit to _set_size records
-    // TODO: orderBy(asc()) before sampling to make deterministic?
-    if(_set_size > 0.0)
+    // GraphFrames uses a column named "id", so let's rename our UUID column
+    // else create one if UUID D.N.E.
+    try
     {
-      dinDF = dinDF.orderBy(desc("OPN_Z"))
-      dinDF = dinDF.limit(_set_size.toInt)
-      logger.info(s"Rows in sampled DF: ${dinDF.count()}")
+        dinDF = dinDF.withColumnRenamed("uuid", "id") 
+    }
+    catch
+    {
+        case unknown:  Throwable => {
+            logger.warn(s"Failed rename col('uuid') as col('id') \n  at $unknown")
+            logger.info(s"Creating col('id') with increasing_id()")
+            dinDF = dinDF.withColumn("id", monotonically_increasing_id())
+                .select("id", dinDF.columns:_*)
+        }
     }
 
-    dinDF = dinDF.orderBy(asc("uuid"))
+    var targetCols = dinDF.columns.filter(_.endsWith("_Z")).toSeq
+    targetCols = Seq("id","name","date","age","sex","country") ++ targetCols
 
+    dinDF = dinDF.select(targetCols.head, targetCols.tail:_*)
+    
+
+    // dinDF = dinDF.orderBy(asc("uuid"))
+    dinDF = dinDF.orderBy(asc("id"))
+    _dinDF = dinDF
 
     logger.info(s"Number of rows =  ${dinDF.count()}")
     logger.info(s"Number of partitions =  ${dinDF.rdd.getNumPartitions}")
     /**/
 
+   
     /** (2) create the GraphFrames for each monolayer graph
      * Export the personality factor layers each as a GraphFrame DF object
      *  - it uses the "XXX_Z" input to key the correct layer/column
@@ -1684,15 +1708,24 @@ object ComplexNetwork {
     /** (5) build multi-layer graph */
     // set checkpoint diretory for connected components
     sc.setCheckpointDir("gs://eecs-e6895-bucket/tmp/")
-    val gdfs: Seq[(String,GraphFrame)] = Seq(("OPN",grOpn),("CSN",grCsn))
-    // var grMulti = buildMulti(grOpn,grCsn,grExt,grAgr,grNeu,numPartitions,persist=true)//,csv=SAVE_CSV)
-    var grMulti = buildMulti(gdfs,numPartitions,persist=true)//,csv=SAVE_CSV)
+    val gdfs: Seq[(String,GraphFrame)] = Seq(("OPN",grOpn),("CSN",grCsn),("EXT",grExt),("AGR",grAgr),("NEU",grNeu))
+    val adjs = buildMulti(gdfs,numPartitions,persist=true)//,csv=SAVE_CSV)
 
     /** (6) Perform multi-layer analysis */
     // TODO
-    grOpn = interLayerAnlaysis(grOpn,"OPN_Z",alg="custom")//,csv=SAVE_CSV)
+    val factors = interLayerAnlaysis(adjs,_rank,_tol,_maxIter,alg="CPALS",csv=SAVE_CSV)
+
+    logger.info("Inter-layer analysis complete.")
+    factors._1.show()
+    factors._2.show()
+
+    // val testDF = dinDF.join(factors._1,"id")
+    // testDF.show()
+
     /**/
 
+    // saves all the global variables
+    // saveAll(_set_size,_rank)
       
     // this persists GraphFrame's edge and vertex DFs. TODO: is this necessary
     // since I've already persisted both DFs?
