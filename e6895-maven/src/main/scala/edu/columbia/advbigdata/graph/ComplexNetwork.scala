@@ -980,6 +980,35 @@ object ComplexNetwork {
     println((time_e-time_s)/1000000000+"s\n")
   }
 
+  /** Convers a SambaTen CPALS factor matrix into a Spark Dataframe
+    * 
+    *
+    * @param factMat SambaTen factor matrix as type FactMat = Array[BDV[Double]]
+    * @param rank rank of the factor matrix (determines # of DataFrame cols)
+    * @param factName string name for the factor matrix, used for col names
+    * @param sc implicit spark context
+    * @return factor matrix as Spark DataFrame
+    */
+
+  def factMatToDF(
+    factMat: Array[BDV[Double]],
+    rank: Int, 
+    factName: String
+  )(implicit sc: SparkContext) : DataFrame = {
+    
+    import spark.implicits._
+    // build the row sequence 
+    var rowSeq = Seq[Array[Double]]()
+    factMat.zipWithIndex.foreach{ case(vec,r) => 
+      rowSeq = rowSeq ++ Seq(vec.toArray.map(_.toDouble))
+    }
+    // convert row sequence to DF
+    val factDF = rowSeq.toDF()
+      .select((0 until rank)
+      .map(i => col("value")(i).alias(s"${factName}_r${i}")): _*)
+    
+    return factDF
+  }
   // }
    /**
     * Function to ingest a DataFrame with layer column name identified
@@ -1156,7 +1185,7 @@ object ComplexNetwork {
      */
     
     // tensor parameters
-    // val R = 3 // rank/# of components
+    // val rank = 3 // rank/# of components
 
     // trying this I found on github
     // facts = (A1,lambda1,A2,lambda2,A3,lambda3)
@@ -1188,8 +1217,8 @@ object ComplexNetwork {
     // facts._5.rows.take(5).foreach(println)
     // println("\n")
 
-
-    val genModel = SambaTenCPALS(adjIrmSeq,rank=2,tol=0.002)
+    val rank = 2
+    val genModel = SambaTenCPALS(adjIrmSeq,rank=rank,tol=0.002)
 
     val factors = genModel.getFactMats
     val lambdas = genModel.getLambda
@@ -1212,6 +1241,9 @@ object ComplexNetwork {
     val factor2 = factors(1)
     val factor3 = factors(2)
 
+    println("factor1")
+    println(factor1)
+
     // build the schema (is this needed?)
     // val rankCols = Seq[StructField]()
     // for (r <- 0 until lambdas.cols) rankCols = rankCols ++ Seq(StructField(s"rank_$r", DoubleType, nullable = false))
@@ -1220,17 +1252,43 @@ object ComplexNetwork {
     // var rowRDDSeq = Seq[RDD[Vector]]()
     // var rowRDDSeq: RDD[Vector] = sc.emptyRDD[Vector]
     // var rowRDDSeq: RDD[Vector] = sc.emptyRDD[Vector]
-    var rowRDDSeq = Seq[Vector]()
-    var rowSeq = Seq[Double]()
-    factor1.foreach{ vec => 
-      // rowRDDSeq = rowRDDSeq ++ sc.parallelize(Vectors.dense(vec.toArray))
-      rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
-      // rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
-      // rowSeq = rowSeq ++ vec.toArray.toSeq
-    }
-    val rowRDD = sc.parallelize(rowRDDSeq).map{row => row.toArray.toSeq}
-    rowRDD.collect.foreach(println)
-    val fact1DF = rowRDD.toDF().select("value", explode($"value"))
+    // var rowRDDSeq = Seq[Vector]()
+    // var rowRDDSeq = Seq[Array[Double]]()
+    // var rowSeq = Seq[Array[Double]]()
+    // var colSeq = Seq[String]()
+    val fact1DF = factMatToDF(factor1,rank,"A").repartition(1)
+      .withColumn("joinCol", monotonically_increasing_id())
+
+    val fact2DF = factMatToDF(factor2,rank,"B").repartition(1)
+      .withColumn("joinCol", monotonically_increasing_id())
+
+    val fact3DF = factMatToDF(factor3,rank,"C").repartition(1)
+      .withColumn("joinCol", monotonically_increasing_id())
+    // factor1.zipWithIndex.foreach{ case(vec,r) => 
+    //   // rowRDDSeq = rowRDDSeq ++ sc.parallelize(Vectors.dense(vec.toArray))
+    //   println(s"factor1, component $r")
+    //   println(vec)
+
+    //   // rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
+    //   rowSeq = rowSeq ++ Seq(vec.toArray.map(_.toDouble))
+    //   // rowRDDSeq = rowRDDSeq ++ Seq(Vectors.dense(vec.toArray))
+    //   // colSeq = colSeq ++ Seq(s"A_$r")
+    //   // rowSeq = rowSeq ++ vec.toArray.toSeq
+    // }
+    // val rowRDD = sc.parallelize(rowRDDSeq).map{row => row.toArray.toSeq}
+    // val fact1DF = rowSeq.toDF()
+    //   .select((0 until rank).map(i => col("value")(i).alias(s"A_$i")): _*)
+    //   .repartition(1)
+    //   .withColumn("joinCol", monotonically_increasing_id())
+      
+
+    
+    
+
+
+    // rowRDD.collect.foreach(println)
+    // val fact1DF = rowRDD.toDF(colSeq: _*)//.select("value", explode($"value"))
+    // val fact1DF = rowRDD.toDF()//.select("value", explode($"value"))
     // val rowRDD = sc.parallelize(Row.fromSeq(rowSeq))
 
     // val fact1Rows = factor1.map{row => Row(row.map(_.toDouble))}
@@ -1238,9 +1296,20 @@ object ComplexNetwork {
     // val fact1DF = spark.createDataFrame(rowRDD)
     fact1DF.printSchema()
     fact1DF.show()
-    adjDFSeq(0).show()
-    val test = adjDFSeq(0).join(fact1DF)
-    test.show()
+    finalDF = finalDF.repartition(1)
+      .withColumn("joinCol", monotonically_increasing_id())
+      .join(fact1DF,"joinCol")
+      .join(fact2DF,"joinCol")
+      // .join(fact3DF,"joinCol")
+      .drop("joinCol")
+      // .join(fact1DF,finalDF("join2") ===  fact1DF("join1"),"inner")
+      // .drop("join1")
+    // tmpDF.show()
+    finalDF.show()
+    fact3DF.show()
+    // adjDFSeq(0).show()
+    // val test = adjDFSeq(0).join(fact1DF)
+    // test.show()
     // val fullTensor = genModel.reconstruct.persist
 
 
