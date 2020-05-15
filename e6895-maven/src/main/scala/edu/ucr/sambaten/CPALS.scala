@@ -10,6 +10,8 @@ import org.apache.log4j.Logger
 import breeze.linalg.{DenseMatrix => BDM, DenseVector => BDV, isClose => isValClose}
 import breeze.stats.distributions.{RandBasis, Gaussian}
 
+import java.time.{Instant,Duration} // NC added for timing support
+
 import Util._
 
 /**
@@ -120,7 +122,9 @@ class CPALS(
   def run(tensor: CoordinateTensor)(
       implicit basis: RandBasis=RandBasis.withSeed(6)): CPDecompModel = {
     val shape = tensor.shape
-    logger.error(s"CPALS on tensor$shape")
+    logger.info(s"CPALS on tensor$shape")
+    val cpals_start: Instant = Instant.now() // NC added 5/13/2020 for timing output
+
     val a = 0; val b = 1; val c = 2
     var factMats: Array[ColMatrix] = null
     var lambda: BDV[Double] = null
@@ -133,8 +137,11 @@ class CPALS(
       lambda = BDV.ones[Double](rank)
       var prevError = Double.PositiveInfinity; var currError = 0.0
       var iter = 0
+      var iter_start: Instant = Instant.now()
+      var iter_time: Long = 0
       while (!restart && iter < maxIter && 
           !isValClose(prevError, currError, tol)) {
+        iter_start = Instant.now() // NC added 5/13/2020 for timing output
         // update factor matrices, normalize them, and get lambda
         updateIteration(tensor, factMats, a, b, c)
         updateIteration(tensor, factMats, b, a, c)
@@ -143,7 +150,8 @@ class CPALS(
         // evaluate current training error
         prevError = currError
         currError = CPDecompModel(factMats, lambda).test(tensor)
-        logger.error(s"$iter, $currError")
+        iter_time = Duration.between(iter_start,Instant.now()).toMillis()
+        logger.info(s"$iter, $currError, +$iter_time ms")
         iter += 1
         if (lambda(0).isNaN || lambda(0).isInfinity) restart = true
       }
@@ -217,13 +225,13 @@ class TestCPALS(implicit val sc: SparkContext) {
     for (i <- 0 until restart) {
       val model = TestCPALS.rand(shape, rank)
       val label = model.reconstruct.persist
-      logger.error("training")
+      logger.info("training")
       val t0 = System.nanoTime()
       val genModel = (new CPALS(rank=rank,tol=0.002)).run(label)
       val t1 = System.nanoTime
       val etime = (t1-t0)/1e9
       val error = genModel.test(label)
-      logger.error(s"relative error: $error, time cost: $etime")
+      logger.info(s"relative error: $error, time cost: $etime")
     }
   }
 

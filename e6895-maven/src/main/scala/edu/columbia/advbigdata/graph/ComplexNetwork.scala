@@ -50,21 +50,18 @@ import scala.collection._
 
 // slf4j-api artifact
 import org.slf4j.{LoggerFactory,Logger}
-import java.time.{Clock, Instant}
-import java.time._
+import java.util.Calendar
+import java.time.{Instant,Duration}
 import java.time.zone.ZoneRulesProvider
 import java.time.format._
-
+import java.text.SimpleDateFormat
 
 // project specific packages
 import edu.columbia.advbigdata.utils.sparkutils._
 import edu.columbia.advbigdata.utils.helpers._
-import edu.ucr.sambaten.{CPALS,Coordinate,CoordinateTensor,TestCPALS,
-  TEntry,CPDecompModel}
+import edu.ucr.sambaten.{CPALS,CPDecompModel,Coordinate,CoordinateTensor,TEntry}
 import edu.ucr.sambaten.Util._
-import com.github.kobeliu85.CloudCP
 import java.{util => ju}
-
 
 // Test data: file:///home/christnp/Development/e6895/data/IPIP-FFM-data-8Nov2018/data-small.csv
 /**
@@ -76,6 +73,9 @@ object ComplexNetwork {
   def logger : Logger = LoggerFactory.getLogger( ComplexNetwork.getClass )
 
   private val prgName = "ComplexNetwork"
+
+  private val format = new SimpleDateFormat("yyyyMMddHHmmss")
+  private val datetime = format.format(Calendar.getInstance().getTime()).toString
   
   // define the neo4j parameters
   private var neo4j_ecrypt = "false"
@@ -123,7 +123,7 @@ object ComplexNetwork {
    * similar data (i.e., name, uuid, location, etc.). 
    *
    *  @param df the source DataFrame
-   *  @param layerCol string column name representing the layer data
+   *  @param layer string column name representing the layer data
    *  @param partitions integer defines the number of partitions to use 
    *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
    *  @param persist boolean flag when true persists the graph DF to memory
@@ -132,14 +132,16 @@ object ComplexNetwork {
    */
   def buildMono(
       df: DataFrame, 
-      layerCol: String, 
+      layer: String, 
       partitions: Int = 0,
       csv: Boolean = false,
       persist: Boolean = true,
       verbose: Boolean = false
     ) : GraphFrame = {
     
-    logger.info(s"Starting buildMono() for '${layerCol}'...")
+    // logger.info(s"Building '${layer}' layer...")
+    val buildMono_start = Instant.now() 
+      
     /** get the SparkSession, SparkContext, and import spark implicits
      */
     //val spark = this.sparkSession
@@ -171,7 +173,7 @@ object ComplexNetwork {
     /** define the columns */
     // var colComm = Seq("uuid","name","date","age","sex","country","goals") // for now, include goals as attributes
     var colComm = Seq("id","name","date","age","sex","country") // for now, remove goals
-    colComm ++= Seq(layerCol)
+    colComm ++= Seq(layer)
     // (1) establish the vertex DF from the master DF
     var vertDF = df.select(colComm.head, colComm.tail: _*)
     // repartition if partition is defined
@@ -195,20 +197,20 @@ object ComplexNetwork {
     // }
 
     // statistics on the data
-    val layerMean = vertDF.select(mean(layerCol)).collect.head.getDouble(0)
-    val opnStddev = vertDF.select(stddev(layerCol)).collect.head.getDouble(0)
+    val layerMean = vertDF.select(mean(layer)).collect.head.getDouble(0)
+    val opnStddev = vertDF.select(stddev(layer)).collect.head.getDouble(0)
 
     if(verbose)
     {
-      logger.info(s"${layerCol}-Mean = ${layerMean.toString()}")  
-      logger.info(s"${layerCol}-Stddev = ${opnStddev.toString()}")
+      logger.info(s"${layer}-Mean = ${layerMean.toString()}")  
+      logger.info(s"${layer}-Stddev = ${opnStddev.toString()}")
     }
 
     // (2) create two temporary DFs for edges ("src","LAYER_src","dst","LAYER_dst")
     //     avoid column name collisions by renaming columns
-    val colFeat_e = Seq(layerCol+"_src",layerCol+"_dst")
-    var tempDF_src = vertDF.select(col("id").as("src"),col(layerCol).as(colFeat_e(0))) 
-    var tempDF_dst = vertDF.select(col("id").as("dst"),col(layerCol).as((colFeat_e(1))))
+    val colFeat_e = Seq(layer+"_src",layer+"_dst")
+    var tempDF_src = vertDF.select(col("id").as("src"),col(layer).as(colFeat_e(0))) 
+    var tempDF_dst = vertDF.select(col("id").as("dst"),col(layer).as((colFeat_e(1))))
  
     // (3) create the edge dataframe of [all connections,connections > opnThresh]
     // Z-score values tells us how far above (+) or below (-) the mean population
@@ -228,14 +230,14 @@ object ComplexNetwork {
     var joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) && 
                     (fitSrcDst >= 2.0)) 
     // define the join condition for each of the personality factors
-    if(layerCol.startsWith("OPN"))
+    if(layer.startsWith("OPN"))
     {
         joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) &&                            // don't allow loopback, nodes linked to self 
                     (fitSrcDst >= 1.0 && fitSrcDst < 3.0) &&                        // >= 3.0? This is upper 97%
                     (tempDF_src(colFeat_e(0)) !== tempDF_dst(colFeat_e(1))) &&
                     (tempDF_src(colFeat_e(0)) < tempDF_dst(colFeat_e(1))))
     }
-    else if(layerCol.startsWith("CSN"))
+    else if(layer.startsWith("CSN"))
     {
         joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) &&                            // don't allow loopback, nodes linked to self 
                     ((fitSrcDst >= 1.0 && fitSrcDst < 3.0) ||                       // >= 3.0? This is upper 97%
@@ -243,14 +245,14 @@ object ComplexNetwork {
                     (tempDF_src(colFeat_e(0)) !== tempDF_dst(colFeat_e(1))) &&
                     (tempDF_src(colFeat_e(0)) < tempDF_dst(colFeat_e(1))))
     }
-    else if(layerCol.startsWith("EXT"))
+    else if(layer.startsWith("EXT"))
     {
         joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) &&                            // don't allow loopback, nodes linked to self 
                     (fitSrcDst >= 1.0 && fitSrcDst < 3.0) &&                      // >= 3.0? This is upper 97%
                     (tempDF_src(colFeat_e(0)) !== tempDF_dst(colFeat_e(1))) &&
                     (tempDF_src(colFeat_e(0)) < tempDF_dst(colFeat_e(1))))
     }
-    else if(layerCol.startsWith("AGR"))
+    else if(layer.startsWith("AGR"))
     {
         joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) &&                            // don't allow loopback, nodes linked to self 
                     ((fitSrcDst >= 1.0 && fitSrcDst < 3.0) ||                       // upper AGR connect to upper EXT
@@ -258,7 +260,7 @@ object ComplexNetwork {
                     (tempDF_src(colFeat_e(0)) !== tempDF_dst(colFeat_e(1))) &&
                     (tempDF_src(colFeat_e(0)) < tempDF_dst(colFeat_e(1))))
     }
-    else if(layerCol.startsWith("NEU"))
+    else if(layer.startsWith("NEU"))
     {
         joinCond = ((tempDF_src("src") !== tempDF_dst("dst")) &&                            // don't allow loopback, nodes linked to self 
                     (fitSrcDst >= -3.0 && fitSrcDst < -1.0) &&                      // low NEU = high EST
@@ -267,7 +269,7 @@ object ComplexNetwork {
     }
     else
     {
-        logger.warn(s"The layerCol name '${layerCol}' does not exist, using default join condition.")
+        logger.warn(s"The layer name '${layer}' does not exist, using default join condition.")
     }
 
     // perform the join and repartition if defined
@@ -282,7 +284,7 @@ object ComplexNetwork {
     tempDF_src.unpersist().count()
     tempDF_dst.unpersist().count()
 
-    edgeDF = edgeDF.withColumn(layerCol+"_fit",
+    edgeDF = edgeDF.withColumn(layer+"_fit",
       ((edgeDF(colFeat_e(0))+edgeDF(colFeat_e(1)))/2.0)).drop(colFeat_e:_*)
 
     // log some information
@@ -294,27 +296,31 @@ object ComplexNetwork {
       vertDF.show(5)   
       logger.info(s"Edge DataFrame...")
       edgeDF.show(5) 
-      logger.info(s"Finished exporting layer information for '${layerCol}'")
+      logger.info(s"Finished exporting layer information for '${layer}'")
     }
 
     // (4) create, store (optional), persist (optional), and return the Graph DF
     val gdf = GraphFrame(vertDF, edgeDF)
     if(persist) gdf.persist(StorageLevel.MEMORY_AND_DISK) 
+    
+    logger.info(s"Building '${layer}' took +${Duration.between(buildMono_start,Instant.now()).toMillis()} ms")
+
 
     if(csv) {
       // TODO: is a global GCP path okay?
-      val gcp_path = s"gs://${GCP_BUCKET}/output"
-      logger.info(s"Saving data as CSV to '$gcp_path'")
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/$datetime"
+      // logger.info(s"Saving data as CSV to '$gcp_path'")
       // save vertices/nodes
-      var file_path = s"${gcp_path}/${layerCol}_raw_vert.csv"
+      var file_path = s"${gcp_path}/${layer}_raw_vert.csv"
       gdf.vertices.writeToCSV(file_path)
       logger.info(s"Successfully saved nodes as '$file_path'")
       // save edges
-      file_path = s"${gcp_path}/${layerCol}_raw_edges.csv"
+      file_path = s"${gcp_path}/${layer}_raw_edges.csv"
       gdf.edges.writeToCSV(file_path)
       logger.info(s"Successfully saved edges as '$file_path'")
     }
-    
+
+
     return gdf
   }
 
@@ -380,11 +386,11 @@ object ComplexNetwork {
       /** Calculate Lambda and normalize matrix
         *  
         */
-      timer_start = Instant.now() 
-      var lambda1_2 = CloudCP.UpdateLambda(A1,0) // 0=L2norm Euclidean norm (Frobenius Norm); 1=max
-      var A1_norm2 = CloudCP.NormalizeMatrix(A1,lambda1_2)
-      logger.info(s"  lambda1_2: ${lambda1_2}")
-      val ccpnormtime = Duration.between(timer_start,Instant.now()).toMillis()
+      // timer_start = Instant.now() 
+      // var lambda1_2 = CloudCP.UpdateLambda(A1,0) // 0=L2norm Euclidean norm (Frobenius Norm); 1=max
+      // var A1_norm2 = CloudCP.NormalizeMatrix(A1,lambda1_2)
+      // logger.info(s"  lambda1_2: ${lambda1_2}")
+      // val ccpnormtime = Duration.between(timer_start,Instant.now()).toMillis()
 
       timer_start = Instant.now() 
       var lambda1 = frNorm(A1)
@@ -402,7 +408,7 @@ object ComplexNetwork {
         logger.info(s"Moore-Penrose inverse...${mpinvtime} ms")
         logger.info(s"Khatri-Rao product......${krtime} ms")
         logger.info(s"Multiplying all.........${multalltime} ms")
-        logger.info(s"CloudCP norm............${ccpnormtime} ms")
+        // logger.info(s"CloudCP norm............${ccpnormtime} ms")
         logger.info(s"My Spark norm...........${mynormtime} ms")
         logger.info(s"Total time..............${totaltime} ms")
         logger.info(s"A1")
@@ -625,12 +631,12 @@ object ComplexNetwork {
     val A3_dim = X3.numRows //L x N*N
    
     // initialize the factors and lambdas
-    // var A1 = rowFactorInit(A1_dim,rank) // initialization is superfluous
-    // var A2 = rowFactorInit(A2_dim,rank)
-    // var A3 = rowFactorInit(A3_dim,rank)
-    var A1:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A1_dim,rank,sc)
-    var A2:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A2_dim,rank,sc)
-    var A3:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A3_dim,rank,sc)
+    var A1 = rowFactorInit(A1_dim,rank) // initialization is superfluous
+    var A2 = rowFactorInit(A2_dim,rank)
+    var A3 = rowFactorInit(A3_dim,rank)
+    // var A1:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A1_dim,rank,sc)
+    // var A2:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A2_dim,rank,sc)
+    // var A3:IndexedRowMatrix = CloudCP.InitialIndexedRowMatrix(A3_dim,rank,sc)
     var lambda1 = Vectors.zeros(rank)
     var lambda2 = Vectors.zeros(rank)
     var lambda3 = Vectors.zeros(rank)
@@ -870,17 +876,17 @@ object ComplexNetwork {
 
    /**
     * Function to ingest a DataFrame with layer column name identified
-    * and return a GraphFrame object. The idea is that multiple layers
+    * and return a IndexedRowMatrix object. The idea is that multiple layers
     * can be generated using the same process because each layer utilizes
     * similar data (i.e., name, uuid, location, etc.). 
     *
     *  @param gdfs the source GraphFrames as a Sequence with String Name
-    *  @param layerCol string column name representing the layer data
+    *  @param layer string column name representing the layer data
     *  @param partitions integer defines the number of partitions to use 
     *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
     *  @param persist boolean flag when true persists the graph DF to memory
     *  @param verbose boolean flag when true sets verbose logging for this function 
-    *  @return a DataFrame for the communities and a DataFrame for the personalities
+    *  @return a list of IndexedRowMatrices representing each layer of the network
     */
   def buildMulti(
       // df_list: List[DataFrame], 
@@ -895,11 +901,10 @@ object ComplexNetwork {
 
     require(gdfs.length > 0, "There must be at least one layer for buildMulti().")
 
-    val start: Instant = Instant.now() //.now(fixedClock)
-    logger.info(s"Starting buildMulti()...")
+    val buildMulti_start: Instant = Instant.now() //.now(fixedClock)
+    // logger.info(s"Starting buildMulti()...")
 
     // use for task timing
-    var timer_start: Instant = Instant.now() 
 
     // Tensor parameters (some are placeholders)
     var N_dim:Long = 0           // A,B dim = N_dim (node communities)
@@ -918,11 +923,12 @@ object ComplexNetwork {
     // var mode3Seq = Seq[RDD[MatrixEntry]]()
     var adjIrmSeq = Seq[IndexedRowMatrix]()
     gdfs.zipWithIndex.foreach{ case(layer_gdf,layer_num) =>
+      var layer_start: Instant = Instant.now() 
 
       val layer = layer_gdf._1
       val ogdf = layer_gdf._2
 
-      logger.info(s"Adding '${layer}' layer...")    
+      // logger.info(s"Adding '${layer}' layer...")    
 
       val V_o = ogdf.vertices
       val E_o = ogdf.edges
@@ -984,7 +990,9 @@ object ComplexNetwork {
       val adjIrmRDD = adjRDD.zipWithIndex
         .map{ case(arr,i) => IndexedRow(i,Vectors.dense(arr.map(_.toDouble)))}
       adjIrmSeq = adjIrmSeq ++ Seq(new IndexedRowMatrix(adjIrmRDD))
+      
 
+      logger.info(s"Adding '${layer}' took +${Duration.between(layer_start,Instant.now()).toMillis()} ms")
     ////////////////////////////////////////////////////////////////////////////
     ///// KEEPING THIS FOR FUTURE DEVELOPMENT, BUT NOW USING SAMBATEN CPALS ////
     ////////////////////////////////////////////////////////////////////////////
@@ -1006,8 +1014,27 @@ object ComplexNetwork {
     //   logger.info(s"Layer ${layer} matricization took ${Duration.between(startMat,Instant.now()).toMillis()} ms")
     ////////////////////////////////////////////////////////////////////////////
     
+      if(csv)
+      {
+        val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+        adjDF.writeToCSV(s"${gcp_path}/${layer}-adjacency-matrix_${N_dim}-nodes.csv")
+        logger.info(s"Successfully saved ${layer} adjacency matrix to '$gcp_path'")
+      }
 
     } // end foreach GraphFrame
+
+
+    // store the adjacency matrices as csv for each layer
+    // if(csv) 
+    // {
+    //   val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+    //   var layer_cnt = 0
+    //   _adjDFSeq.foreach{ case (layer,adjDF) => 
+    //     layer_cnt = layer_cnt + 1
+    //     adjDF.writeToCSV(s"${gcp_path}/${layer}-adjacency-matrix_${N_dim}-nodes.csv")
+    //     logger.info(s"Successfully saved ${layer} adjacency matrix to '$gcp_path'")
+    //   }
+    // }
 
     return adjIrmSeq
     // /**
@@ -1214,7 +1241,7 @@ object ComplexNetwork {
    * Storage bucket (defined globally)
    *
    *  @param gdf the source DataFrame
-   *  @param layerCol string column name representing the layer (used for CSV)
+   *  @param layer string column name representing the layer (used for CSV)
    *  @param alg string defines algorithm to be used for analysis
    *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
    *  @param verbose boolean flag when true sets verbose logging for this function 
@@ -1222,7 +1249,7 @@ object ComplexNetwork {
    */
   def intraLayerAnlaysis(
       gdf: GraphFrame, 
-      layerCol: String, 
+      layer: String, 
       alg: String,
       csv: Boolean = false,
       verbose: Boolean = false
@@ -1251,14 +1278,14 @@ object ComplexNetwork {
     if(csv) 
     {
       // TODO: is a global GCP path okay?
-      val gcp_path = s"gs://${GCP_BUCKET}/output"
-      logger.info(s"Saving data as CSV to '$gcp_path'")
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/$datetime"
+      // logger.info(s"Saving data as CSV to '$gcp_path'")
       // save vertices/nodes
-      var file_path = s"${gcp_path}/${layerCol}_PageRank_vert.csv"
+      var file_path = s"${gcp_path}/${layer}_PageRank_vert.csv"
       tmp_gdf.vertices.writeToCSV(file_path)
       logger.info(s"Successfully saved nodes as '$file_path'")
       // save edges
-      file_path = s"${gcp_path}/${layerCol}_PageRank_edges.csv"
+      file_path = s"${gcp_path}/${layer}_PageRank_edges.csv"
       tmp_gdf.edges.writeToCSV(file_path)
       logger.info(s"Successfully saved edges as '$file_path'")
     }
@@ -1269,15 +1296,15 @@ object ComplexNetwork {
   }
 
   /**
-   * Function to ingest a Graph DataFrame (GraphFrame) and analyze the interlayer
-   * network. Optionally store results in a Google Storage bucket (defined globally)
+   * Function to ingest a list of IndexedRowMatrices and analyze the interlayer
+   * network. Optionally store results in a Google Storage bucket (csv=true)
    *
    *  @param gdf the source DataFrame
-   *  @param layerCol string column name representing the layer (used for CSV)
+   *  @param layer string column name representing the layer (used for CSV)
    *  @param alg string defines algorithm to be used for analysis
    *  @param csv boolean flag when true saves graph DF as CSV on Google Storage
    *  @param verbose boolean flag when true sets verbose logging for this function 
-   *  @return a GraphFrame object
+   *  @return a DataFrame for the communities and a DataFrame for the personalities
    */
   def interLayerAnlaysis(
       adjMats: Seq[IndexedRowMatrix], 
@@ -1290,6 +1317,7 @@ object ComplexNetwork {
     )(implicit sc: SparkContext) : (DataFrame, DataFrame) = {
 
     logger.info(s"Starting interlayer analysis. Running: ${alg} algorithm.")
+    val analysis_start: Instant = Instant.now() //.now(fixedClock)
     /** get the SparkSession, SparkContext, and import spark implicits
      */
     //val spark = this.sparkSession
@@ -1477,13 +1505,40 @@ object ComplexNetwork {
       logger.error("Unknown algorithm chosen for interlayer analysis.")
     }
 
-     if(csv) 
+    logger.info(s"Running '${alg}' took +${Duration.between(analysis_start,Instant.now()).toMillis()} ms")
+
+
+    if(csv) 
     {
-      saveAll(_comsDF.count.toInt,rank,tol)
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+      val L = _ffmsDF.count()
+      val N = _comsDF.count()
+      // save personality matrix
+      _ffmsDF.writeToCSV(s"${gcp_path}/personality-factor-matrix_rank-${rank}_tol-${tol}_${L}-layers.csv")
+      logger.info(s"Successfully saved personality factor matrix of rank-${rank} to '$gcp_path'")
+      // save community factor matrix
+      _comsDF.writeToCSV(s"${gcp_path}/community-factors_rank-${rank}_tol-${tol}_${N}-nodes.csv")
+      logger.info(s"Successfully saved community factor matrix of rank-${rank} to '$gcp_path'")
+      // save lambda vector
+      _lmdaDF.writeToCSV(s"${gcp_path}/lambda-vector_rank-${rank}_tol-${tol}_${N}-nodes.csv")
+      logger.info(s"Successfully saved lambda vector of rank-${rank} to '$gcp_path'")
     }
+
+
+    // return the global dataframes? IDK what I'm thinking here...
     return (_comsDF, _ffmsDF)
   }
-    
+  
+  /**
+    * helper function to save all of the globally stored dataframes that are 
+    * deemed "important." This is a quick and dirty function that must be edited 
+    * if additional dataframes are to be saved. The parameters are just used
+    * for naming the file, so they can really be anything.
+    *
+    * @param dsize number of nodes in the network (typically)
+    * @param rank rank of reuslts used for naming the file
+    * @param tol tolerance of teh results usde for naming the file
+    */
   def saveAll(dsize: Int = 0, rank: Int = 0,tol: Double = 0.002) = {
     val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer"
     logger.info(s"Saving global data as CSV to '$gcp_path'")
@@ -1682,13 +1737,14 @@ object ComplexNetwork {
      *  - it uses the "XXX_Z" input to key the correct layer/column
      *  - analyzes each layer 
      */
-    var grOpn = buildMono(dinDF,"OPN_Z",numPartitions,persist=true)//,csv=SAVE_CSV)
-    var grCsn = buildMono(dinDF,"CSN_Z",numPartitions,persist=true)//,csv=SAVE_CSV)
-    var grExt = buildMono(dinDF,"EXT_Z",numPartitions,persist=true)//,csv=SAVE_CSV)
-    var grAgr = buildMono(dinDF,"AGR_Z",numPartitions,persist=true)//,csv=SAVE_CSV)
-    var grNeu = buildMono(dinDF,"NEU_Z",numPartitions,persist=true)//,csv=SAVE_CSV)
+    logger.info(s"Starting buildMono()...")
+    var grOpn = buildMono(dinDF,"OPN_Z",numPartitions,persist=true,csv=SAVE_CSV)
+    var grCsn = buildMono(dinDF,"CSN_Z",numPartitions,persist=true,csv=SAVE_CSV)
+    var grExt = buildMono(dinDF,"EXT_Z",numPartitions,persist=true,csv=SAVE_CSV)
+    var grAgr = buildMono(dinDF,"AGR_Z",numPartitions,persist=true,csv=SAVE_CSV)
+    var grNeu = buildMono(dinDF,"NEU_Z",numPartitions,persist=true,csv=SAVE_CSV)
     /**/
-   
+
     /** (3) Store graph in a neo4j graphDB for later use */
     // TODO: this is a work in progress, it is not working as I had hoped....
     // For now, load CSVs
@@ -1707,42 +1763,21 @@ object ComplexNetwork {
 
     /** (5) build multi-layer graph */
     // set checkpoint diretory for connected components
+    logger.info(s"Starting buildMulti()...")
     sc.setCheckpointDir("gs://eecs-e6895-bucket/tmp/")
     val gdfs: Seq[(String,GraphFrame)] = Seq(("OPN",grOpn),("CSN",grCsn),("EXT",grExt),("AGR",grAgr),("NEU",grNeu))
-    val adjs = buildMulti(gdfs,numPartitions,persist=true)//,csv=SAVE_CSV)
+    val adjs = buildMulti(gdfs,numPartitions,persist=true,csv=SAVE_CSV)
 
     /** (6) Perform multi-layer analysis */
     // TODO
     val factors = interLayerAnlaysis(adjs,_rank,_tol,_maxIter,alg="CPALS",csv=SAVE_CSV)
 
     logger.info("Inter-layer analysis complete.")
-    factors._1.show()
-    factors._2.show()
-
-    // val testDF = dinDF.join(factors._1,"id")
-    // testDF.show()
-
+    factors._1.show(5)
+    factors._2.show(5)
     /**/
 
-    // saves all the global variables
-    // saveAll(_set_size,_rank)
       
-    // this persists GraphFrame's edge and vertex DFs. TODO: is this necessary
-    // since I've already persisted both DFs?
-
-    // if(DEBUG > 0) {
-   
-
-    // logger.info(s"grCsn.edges")
-    // // grOpn.edges.orderBy(desc("OPN_Z_dist")).show()
-    // grCsn.edges.orderBy(asc("dst")).show(10)
-    // logger.info(s"grCsn.edges.count = ${grCsn.edges.count}")
-    
-    // filter by country
-    // logger.info(s"grOpn.country == 'ZAF'")
-    // grOpn.vertices.filter("country == 'ZAF'").show()
-    // }
-    
     /** (5) Store graph in a neo4j graphDB for later use */
     // TODO: this is a work in progress, it is not working as I had hoped....
     // https://github.com/neo4j-contrib/neo4j-spark-connector/blob/master/README.md
@@ -1980,20 +2015,6 @@ object ComplexNetwork {
     // logger.info(s"Csn conn. comp. results")
     // var ccCsn = grCsn.connectedComponents.run() 
     // ccCsn.orderBy(asc("id")).show(10)
-    
-    
-    //////////////////////////////// DEBUG /////////////////////////////////////
-    // var dbgDF = spark.emptyDataFrame
-
-    // debug DF
-    // val dbgDF = Seq(
-    //   (8, "bat"),
-    //   (64, "mouse"),
-    //   (-27, "horse")
-    // ).toDF("number", "word")
-    // dbgDF.printGoals(Seq("word"))
-
-    ////////////////////////////////////////////////////////////////////////////
 
     // close the SparkSession
     // println("Closing SparkSession [" + spark.sparkContext.applicationId + "]")

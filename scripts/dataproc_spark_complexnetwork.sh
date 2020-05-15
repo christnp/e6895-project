@@ -21,9 +21,9 @@ read -p "Limit output to size to... [enter 0 (zero) for all data] " -i "10" -e S
 
 read -p "Would you like to enter CP-ALS parameters? [yes/no] " -i "yes" -e PARAMS
 if [ "$PARAMS" == "yes" ]; then
-    read -p "Desired factor factor matrix rank... [must be >= 1] " -i "2" -e RANK
+    read -p "Desired factor factor matrix rank... [must be >= 1] " -i "4" -e RANK
     read -p "Tolerance for the CP-ALS algorithm [mst be > 0] " -i "0.002" -e TOL
-    read -p "Maximum iterations for CP-ALS befre exiting... [must be > 0] " -i "20" -e MAXITER
+    read -p "Maximum iterations for CP-ALS befre exiting... [must be > 0] " -i "25" -e MAXITER
 fi
 
 # JOb IPIP score Input
