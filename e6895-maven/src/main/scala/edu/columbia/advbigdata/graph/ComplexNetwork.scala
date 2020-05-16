@@ -114,6 +114,7 @@ object ComplexNetwork {
   var _ffmsDF = spark.emptyDataFrame
   var _lmdaDF = spark.emptyDataFrame
   var _dinDF = spark.emptyDataFrame
+  var _outputPath = datetime
 
 
   /**
@@ -308,7 +309,7 @@ object ComplexNetwork {
 
     if(csv) {
       // TODO: is a global GCP path okay?
-      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/$datetime"
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/${_outputPath}"
       // logger.info(s"Saving data as CSV to '$gcp_path'")
       // save vertices/nodes
       var file_path = s"${gcp_path}/${layer}_raw_vert.csv"
@@ -1016,7 +1017,7 @@ object ComplexNetwork {
     
       if(csv)
       {
-        val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+        val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/${_outputPath}"
         adjDF.writeToCSV(s"${gcp_path}/${layer}-adjacency-matrix_${N_dim}-nodes.csv")
         logger.info(s"Successfully saved ${layer} adjacency matrix to '$gcp_path'")
       }
@@ -1027,7 +1028,7 @@ object ComplexNetwork {
     // store the adjacency matrices as csv for each layer
     // if(csv) 
     // {
-    //   val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+    //   val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/${_outputPath}"
     //   var layer_cnt = 0
     //   _adjDFSeq.foreach{ case (layer,adjDF) => 
     //     layer_cnt = layer_cnt + 1
@@ -1278,7 +1279,7 @@ object ComplexNetwork {
     if(csv) 
     {
       // TODO: is a global GCP path okay?
-      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/$datetime"
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_graphframes/${_outputPath}"
       // logger.info(s"Saving data as CSV to '$gcp_path'")
       // save vertices/nodes
       var file_path = s"${gcp_path}/${layer}_PageRank_vert.csv"
@@ -1510,7 +1511,7 @@ object ComplexNetwork {
 
     if(csv) 
     {
-      val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/$datetime"
+      val gcp_path = s"gs://${GCP_BUCKET}/output/_multilayer/${_outputPath}"
       val L = _ffmsDF.count()
       val N = _comsDF.count()
       // save personality matrix
@@ -1618,11 +1619,15 @@ object ComplexNetwork {
       {
         _maxIter = args(3).toInt
       }
+      if (args.length > 4 && !args(4).isEmpty())
+      {
+        _outputPath = args(4).toString
+      }
     }
 
-    if (args.length > 4 && !args(4).isEmpty()) 
+    if (args.length > 5 && !args(5).isEmpty()) 
     {
-      csvFile = args(4)
+      csvFile = args(5)
       DEBUG = 1
       // neo4j_host = "localhost"
       // neo4j_user = "neo4j"
@@ -1743,6 +1748,19 @@ object ComplexNetwork {
     var grExt = buildMono(dinDF,"EXT_Z",numPartitions,persist=true,csv=SAVE_CSV)
     var grAgr = buildMono(dinDF,"AGR_Z",numPartitions,persist=true,csv=SAVE_CSV)
     var grNeu = buildMono(dinDF,"NEU_Z",numPartitions,persist=true,csv=SAVE_CSV)
+
+    // logger.info("Openness Graph:")
+    // grOpn.edges.show(5)
+    // logger.info("Conscientiousness Graph:")
+    // grCsn.edges.show(5)
+    // logger.info("Extraversion Graph:")
+    // grExt.edges.show(5)
+    // logger.info("Agreeableness Graph:")
+    // grAgr.edges.show(5)
+    // logger.info("Neuroticsm Graph:")
+    // grNeu.edges.show(5)
+    // sys.exit()
+
     /**/
 
     /** (3) Store graph in a neo4j graphDB for later use */

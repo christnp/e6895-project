@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # data analysis
 from datetime import datetime
 import sys
@@ -48,6 +50,7 @@ class GoogleBucketUtil:
             except Exception as e:
                 print("Failed to rename file in path {}: {}".format(path,e))
         
+        #remove the directories
         for file in files_in_path:
             file_path = os.path.join(self.csv_path,file)
             if file.endswith(".csv"):
@@ -57,12 +60,15 @@ class GoogleBucketUtil:
                         shutil.rmtree(file_path)
                     except Exception as e:
                         print("Failed to remove direcotry {}: {}".format(file_path,e))
-                if file.startswith("moved_"):
-                    # print("Starts with moved_:\n{}".format(file))
-                    try:
-                        os.rename(file_path, file_path.replace('moved_', ''))
-                    except Exception as e:
-                        print("Failed rename file {}: {}".format(file_path,e))
+        # now update files list and rename the files
+        files_in_path = os.listdir(self.csv_path)
+        for file in files_in_path:
+            file_path = os.path.join(self.csv_path,file)
+            if file.startswith("moved_"):
+                try:
+                    os.rename(file_path, file_path.replace('moved_', ''))
+                except Exception as e:
+                    print("Failed rename file {}: {}".format(file_path,e))
 
 if __name__ == "__main__":
     prg_desc = 'Postprocessed personality project data. For more'

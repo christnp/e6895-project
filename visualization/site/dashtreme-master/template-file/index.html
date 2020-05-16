@@ -82,7 +82,7 @@
           "NEU": {
             "caption": "label",
             "size": "pagerank",
-            "score": "score",
+            "score": "  ",
             // "community": "age"
             //"sizeCypher": "MATCH (n) WHERE id(n) = {id} MATCH (n)-[r]-() RETURN sum(r.weight) AS c"
           }
@@ -408,13 +408,20 @@
                   <tbody>
                     <tr>
                       <td>
-                        <h6><i class="zmdi zmdi-archive"></i> Cypher</h6>
+                        <h6><i class="zmdi zmdi-archive"></i> Personalities</h6>
                         <!-- <textarea rows="4" id="cypher"></textarea><br> -->
                         <div class="neo4j-controls-upper">
-                          <input type="text" class="neo4j-form-control" id="cypher" placeholder="MATCH (n)-[r:INTERLOCK]->(m) RETURN n,r,m"><br/>
+                          <input type="submit" class="btn btn-light px-5" value="OPN" id="opn">
+                          <input type="submit" class="btn btn-light px-5" value="CSN" id="csn">
+                        </div>
+                        <div class="neo4j-controls-upper">
+                          <input type="submit" class="btn btn-light px-5" value="EXT" id="ext">
+                          <input type="submit" class="btn btn-light px-5" value="AGR" id="agr">
+                        </div>
+                        <div class="neo4j-controls-upper">
+                            <input type="submit" class="btn btn-light px-5" value="NEU" id="neu">
                         </div>
                         <div class="neo4j-controls-lower">
-                          <input type="submit" class="btn btn-light px-5" value="Query" id="reload">
                         </div>
                       </td>
                     </tr>
@@ -427,6 +434,18 @@
                   <!-- <button type="submit" class="btn btn-success">
                           <i class="fa fa-arrow-circle-right fa-lg"></i> Next
                       </button> -->
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <h6><i class="zmdi zmdi-archive"></i> Cypher</h6>
+                        <!-- <textarea rows="4" id="cypher"></textarea><br> -->
+                        <div class="neo4j-controls-upper">
+                          <input type="text" class="neo4j-form-control" id="cypher" placeholder="MATCH (n)-[r:INTERLOCK]->(m) RETURN n,r,m"><br/>
+                        </div>
+                        <div class="neo4j-controls-lower">
+                          <input type="submit" class="btn btn-light px-5" value="Query" id="reload">
+                        </div>
                       </td>
                     </tr>
                     <!-- <tr>
@@ -671,6 +690,24 @@
     $("#stabilize").click(function () {
       viz.stabilize();
     })
+
+    $("#opn").click(function () {
+      viz.renderWithCypher("MATCH (n:OPN)-[r:INTERLOCK]->(m) RETURN n,r,m");
+    })
+    $("#csn").click(function () {
+      viz.renderWithCypher("MATCH (n:CSN)-[r:INTERLOCK]->(m) RETURN n,r,m");
+    })
+    $("#ext").click(function () {
+      viz.renderWithCypher("MATCH (n:EXT)-[r:INTERLOCK]->(m) RETURN n,r,m");
+    })
+    $("#agr").click(function () {
+      viz.renderWithCypher("MATCH (n:AGR)-[r:INTERLOCK]->(m) RETURN n,r,m");
+    })
+    $("#neu").click(function () {
+      viz.renderWithCypher("MATCH (n:NEU)-[r:INTERLOCK]->(m) RETURN n,r,m");
+    })
+
+    
 
     // $("#opn").click(function () {
     //   viz.reconfig();
